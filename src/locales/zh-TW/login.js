@@ -1,0 +1,16 @@
+export default {
+  'navBar.lang': '語言',
+  'layout.user.link.help': '幫助',
+  'layout.user.link.privacy': '隱私',
+  'layout.user.link.terms': '條款',
+  'app.logo.name': 'my antdpro',
+  'app.copyright': '2020 hankaibo',
+  'app.login.username': '賬戶',
+  'app.login.password': '密碼',
+  'app.login.message-invalid-credentials': '賬戶或密碼錯誤（admin|user/123456）',
+  'app.login.remember-me': '自動登錄',
+  'app.login.forgot-password': '忘記密碼',
+  'app.login.login': '登錄',
+  'validation.username.required': '請輸入賬戶!',
+  'validation.password.required': '請輸入密碼！',
+};
