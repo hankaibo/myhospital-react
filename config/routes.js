@@ -15,6 +15,10 @@ export default [
         ],
       },
       {
+        path: '/hospital',
+        component: './hospital',
+      },
+      {
         path: '/',
         component: '../layouts/SecurityLayout',
         routes: [

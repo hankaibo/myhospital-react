@@ -1,9 +1,8 @@
 {
-  "name": "myantdpro",
+  "name": "myhospital",
   "version": "1.0.0",
   "private": true,
-  "description": "前端脚手架",
-  "homepage": "http://58.87.121.239:9001",
+  "description": "医保定点医院助手",
   "scripts": {
     "analyze": "cross-env ANALYZE=1 umi build",
     "build": "umi build",
@@ -50,6 +49,7 @@
     "lodash.isequal": "^4.5.0",
     "lodash.throttle": "^4.1.1",
     "moment": "^2.29.1",
+    "ol": "^6.5.0",
     "path-to-regexp": "^6.2.0",
     "qs": "^6.9.4",
     "react": "^16.14.0",
