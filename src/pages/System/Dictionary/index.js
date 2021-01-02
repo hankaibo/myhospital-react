@@ -1,15 +1,14 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Table, Input, Switch, Button, Popconfirm, Divider, message } from 'antd';
-import { PageHeaderWrapper } from '@ant-design/pro-layout';
+import { PageContainer } from '@ant-design/pro-layout';
 import { RollbackOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { isEqual, isEmpty } from 'lodash';
 import { Link, history, connect } from 'umi';
 import moment from 'moment';
 import Authorized from '@/utils/Authorized';
 import NoMatch from '@/components/Authorized/NoMatch';
-import { getValue } from '@/utils/utils';
+import RenderPropsModal from '@/components/RenderModal';
+import { getValue, isEmpty } from '@/utils/utils';
 import DictionaryForm from './components/DictionaryForm';
-import styles from '../System.less';
 
 const Dictionary = connect(({ systemDictionary: { list, pagination }, loading }) => ({
   list,
@@ -26,6 +25,7 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
     pageSize: pagination.pageSize || 10,
     parentId: parentDictId,
     status: null,
+    name: null,
   });
 
   // 【复选框状态属性与函数】
@@ -54,14 +54,13 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
       payload: {
         id,
         status: checked,
-        searchParams: params,
       },
     });
   };
 
   // 【搜索】
   const handleFormSubmit = () => {
-    message.info('演示环境，暂未开放。');
+    message.info('暂未开放。');
   };
 
   // 【批量删除字典】
@@ -71,7 +70,6 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
       type: 'systemDictionary/deleteBatch',
       payload: {
         ids: selectedRowKeys,
-        searchParams: params,
       },
       callback: () => {
         setSelectedRowKeys([]);
@@ -87,7 +85,6 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
       type: 'systemDictionary/delete',
       payload: {
         id,
-        searchParams: params,
       },
       callback: () => {
         setSelectedRowKeys([]);
@@ -190,15 +187,16 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
       render: (text, record) => (
         <>
           <Authorized authority="system:dictionary:update" noMatch={null}>
-            <DictionaryForm
-              isEdit
-              id={record.id}
-              match={match}
-              location={location}
-              searchParams={params}
-            >
-              <EditOutlined title="编辑" className="icon" />
-            </DictionaryForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <EditOutlined title="编辑" className="icon" onClick={showModalHandler} />
+                  <Modal title="编辑">
+                    <DictionaryForm isEdit id={record.id} match={match} location={location} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:dictionary:delete" noMatch={null}>
@@ -217,16 +215,23 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
   ];
 
   return (
-    <PageHeaderWrapper title={false} content={mainSearch}>
+    <PageContainer title={false} content={mainSearch}>
       <Card style={{ marginTop: 10 }} bordered={false} bodyStyle={{ padding: '15px' }}>
-        <div className={styles.tableList}>
-          <div className={styles.tableListOperator}>
+        <div className="tableList">
+          <div className="tableListOperator">
             <Authorized authority="system:dictionary:add" noMatch={null}>
-              <DictionaryForm match={match} location={location} searchParams={params}>
-                <Button type="primary" title="新增">
-                  <PlusOutlined />
-                </Button>
-              </DictionaryForm>
+              <RenderPropsModal>
+                {({ showModalHandler, Modal }) => (
+                  <>
+                    <Button type="primary" title="新增" onClick={showModalHandler}>
+                      <PlusOutlined />
+                    </Button>
+                    <Modal title="新增">
+                      <DictionaryForm match={match} location={location} />
+                    </Modal>
+                  </>
+                )}
+              </RenderPropsModal>
             </Authorized>
             <Authorized authority="system:dictionary:batchDelete" noMatch={null}>
               <Popconfirm
@@ -259,10 +264,8 @@ const Dictionary = connect(({ systemDictionary: { list, pagination }, loading })
           />
         </div>
       </Card>
-    </PageHeaderWrapper>
+    </PageContainer>
   );
 });
 
-const areEqual = (prevProps, nextProps) => isEqual(prevProps, nextProps);
-
-export default memo(Dictionary, areEqual);
+export default Dictionary;

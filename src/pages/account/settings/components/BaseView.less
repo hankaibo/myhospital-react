@@ -1,0 +1,51 @@
+@import '~antd/es/style/themes/default.less';
+
+.baseView {
+  display: flex;
+  padding-top: 12px;
+
+  :global {
+    .ant-legacy-form-item .ant-legacy-form-item-control-wrapper {
+      width: 100%;
+    }
+  }
+
+  .left {
+    min-width: 224px;
+    max-width: 448px;
+  }
+
+  .right {
+    flex: 1;
+    padding-left: 104px;
+
+    :global {
+      .ant-upload-list-picture-card .ant-upload-list-item {
+        width: 256px;
+        height: 256px;
+      }
+    }
+  }
+}
+
+@media screen and (max-width: @screen-xl) {
+  .baseView {
+    flex-direction: column-reverse;
+
+    .right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 448px;
+      margin-bottom: 24px;
+      padding: 0 0 20px;
+
+      :global {
+        .ant-upload-list-picture-card .ant-upload-list-item {
+          width: 144px;
+          height: 144px;
+        }
+      }
+    }
+  }
+}

@@ -25,6 +25,8 @@ export default {
     // 角色树、选中的keys
     treeData: [],
     checkedKeys: [],
+    // 过滤参数
+    filter: {},
   },
 
   effects: {
@@ -43,6 +45,12 @@ export default {
       if (callback) callback();
     },
     *fetch({ payload, callback }, { call, put }) {
+      yield put({
+        type: 'saveFilter',
+        payload: {
+          ...payload,
+        },
+      });
       const response = yield call(pageUser, payload);
       const { apierror } = response;
       if (apierror) {
@@ -59,18 +67,18 @@ export default {
       });
       if (callback) callback();
     },
-    *add({ payload, callback }, { call, put }) {
-      const { values, searchParams } = payload;
-      const params = { ...values, status: +values.status };
-      const response = yield call(addUser, params);
+    *add({ payload, callback }, { call, put, select }) {
+      const values = { ...payload, status: +payload.status };
+      const response = yield call(addUser, values);
       const { apierror } = response;
       if (apierror) {
         return;
       }
+      const filter = yield select((state) => state.systemUser.filter);
       yield put({
         type: 'fetch',
         payload: {
-          ...searchParams,
+          ...filter,
           current: 1,
         },
       });
@@ -86,7 +94,7 @@ export default {
       const user = {
         ...response,
         status: !!response.status,
-        departmentId: response.departmentId.toString(),
+        departmentIdList: response.departmentIdList.map((item) => item.toString()),
       };
       yield put({
         type: 'save',
@@ -96,34 +104,35 @@ export default {
       });
       if (callback) callback();
     },
-    *update({ payload, callback }, { call, put }) {
-      const { values, searchParams } = payload;
-      const params = { ...values, status: +values.status };
-      const response = yield call(updateUser, params);
+    *update({ payload, callback }, { call, put, select }) {
+      const values = { ...payload, status: +payload.status };
+      const response = yield call(updateUser, values);
       const { apierror } = response;
       if (apierror) {
         return;
       }
+      const filter = yield select((state) => state.systemUser.filter);
       yield put({
         type: 'fetch',
         payload: {
-          ...searchParams,
+          ...filter,
         },
       });
       if (callback) callback();
     },
-    *enable({ payload, callback }, { call, put }) {
-      const { id, status, searchParams } = payload;
+    *enable({ payload, callback }, { call, put, select }) {
+      const { id, status } = payload;
       const params = { id, status: +status };
       const response = yield call(enableUser, params);
       const { apierror } = response;
       if (apierror) {
         return;
       }
+      const filter = yield select((state) => state.systemUser.filter);
       yield put({
         type: 'fetch',
         payload: {
-          ...searchParams,
+          ...filter,
         },
       });
       if (callback) callback();
@@ -136,32 +145,33 @@ export default {
       }
       if (callback) callback();
     },
-    *delete({ payload, callback }, { call, put }) {
-      const { id, searchParams } = payload;
-      const response = yield call(deleteUser, id);
+    *delete({ payload, callback }, { call, put, select }) {
+      const { id, departmentId } = payload;
+      const response = yield call(deleteUser, id, departmentId);
       const { apierror } = response;
       if (apierror) {
         return;
       }
+      const filter = yield select((state) => state.systemUser.filter);
       yield put({
         type: 'fetch',
         payload: {
-          ...searchParams,
+          ...filter,
         },
       });
       if (callback) callback();
     },
-    *deleteBatch({ payload, callback }, { call, put }) {
-      const { ids, searchParams } = payload;
-      const response = yield call(deleteBatchUser, ids);
+    *deleteBatch({ payload, callback }, { call, put, select }) {
+      const response = yield call(deleteBatchUser, payload);
       const { apierror } = response;
       if (apierror) {
         return;
       }
+      const filter = yield select((state) => state.systemUser.filter);
       yield put({
         type: 'fetch',
         payload: {
-          ...searchParams,
+          ...filter,
         },
       });
       if (callback) callback();
@@ -193,6 +203,14 @@ export default {
   },
 
   reducers: {
+    saveFilter(state, { payload }) {
+      return {
+        ...state,
+        filter: {
+          ...payload,
+        },
+      };
+    },
     saveTree(state, { payload }) {
       const { tree } = payload;
       return {
@@ -219,6 +237,7 @@ export default {
         ...state,
         list: [],
         pagination: {},
+        filter: {},
       };
     },
     save(state, { payload }) {

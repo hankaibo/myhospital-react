@@ -4,8 +4,8 @@
  * https://github.com/ant-design/ant-design-pro-layout
  */
 import ProLayout, { DefaultFooter, SettingDrawer } from '@ant-design/pro-layout';
-import React, { Suspense } from 'react';
-import { connect, Link, useIntl } from 'umi';
+import React, { useRef, Suspense } from 'react';
+import { connect, Link, useIntl, history } from 'umi';
 import { Result, Button } from 'antd';
 import Authorized from '@/utils/Authorized';
 import RightContent from '@/components/GlobalHeader/RightContent';
@@ -32,7 +32,7 @@ const menuDataRender = (menuList) =>
   menuList.map((item) => {
     const localItem = {
       ...item,
-      children: item.children ? menuDataRender(item.children) : [],
+      children: item.children ? menuDataRender(item.children) : undefined,
     };
     return Authorized.check(item.authority, localItem, null);
   });
@@ -48,6 +48,8 @@ const BasicLayout = (props) => {
       pathname: '/',
     },
   } = props;
+
+  const menuDataRef = useRef([]);
 
   const handleMenuCollapse = (payload) => {
     if (dispatch) {
@@ -84,15 +86,12 @@ const BasicLayout = (props) => {
       <ProLayout
         logo={logo}
         formatMessage={formatMessage}
-        menuHeaderRender={(logoDom, titleDom) => (
-          <Link to="/">
-            {logoDom}
-            {titleDom}
-          </Link>
-        )}
+        {...props}
+        {...settings}
         onCollapse={handleMenuCollapse}
+        onMenuHeaderClick={() => history.push('/')}
         menuItemRender={(menuItemProps, defaultDom) => {
-          if (menuItemProps.isUrl || menuItemProps.children || !menuItemProps.path) {
+          if (menuItemProps.isUrl || !menuItemProps.path || location.pathname === menuItemProps.path) {
             return defaultDom;
           }
           return <Link to={menuItemProps.path}>{defaultDom}</Link>;
@@ -109,17 +108,15 @@ const BasicLayout = (props) => {
         ]}
         itemRender={(route, params, routes, paths) => {
           const first = routes.indexOf(route) === 0;
-          return first ? (
-            <Link to={paths.join('/')}>{route.breadcrumbName}</Link>
-          ) : (
-            <span>{route.breadcrumbName}</span>
-          );
+          return first ? <Link to={paths.join('/')}>{route.breadcrumbName}</Link> : <span>{route.breadcrumbName}</span>;
         }}
         footerRender={() => <DefaultFooter links={[]} copyright={<span>copyright</span>} />}
         menuDataRender={menuDataRender}
         rightContentRender={() => <RightContent />}
-        {...props}
-        {...settings}
+        postMenuData={(menuData) => {
+          menuDataRef.current = menuData || [];
+          return menuData || [];
+        }}
       >
         <Authorized authority={authorized.authority} noMatch={noMatch}>
           {children}

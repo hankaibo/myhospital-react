@@ -1,10 +1,10 @@
-import { Tooltip, Tag } from 'antd';
-import { QuestionCircleOutlined } from '@ant-design/icons';
 import React from 'react';
-import { connect, useIntl } from 'umi';
+import { Tag, Tooltip } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
+import { connect, useIntl, SelectLang } from 'umi';
 import Avatar from './AvatarDropdown';
+import NoticeIconView from './NoticeIconView';
 import HeaderSearch from '../HeaderSearch';
-import SelectLang from '../SelectLang';
 import styles from './index.less';
 
 const ENVTagColor = {
@@ -18,7 +18,7 @@ const GlobalHeaderRight = (props) => {
   const { theme, layout } = props;
   let className = styles.right;
 
-  if (theme === 'dark' && layout === 'topmenu') {
+  if (theme === 'dark' && layout === 'top') {
     className = `${styles.right}  ${styles.dark}`;
   }
 
@@ -31,21 +31,19 @@ const GlobalHeaderRight = (props) => {
         })}
         defaultValue="umi ui"
         options={[
-          { label: <a href="https://umijs.org/zh/guide/umi-ui.html">umi ui</a>, value: 'umi ui' },
           {
-            label: <a href="next.ant.design">Ant Design</a>,
-            value: 'Ant Design',
+            label: <a href="https://umijs.org/zh/guide/umi-ui.html">umi ui</a>,
+            value: 'umi ui',
           },
           {
-            label: <a href="https://protable.ant.design/">Pro Table</a>,
-            value: 'Pro Table',
+            label: <a href="https://ant.design/">Ant Design</a>,
+            value: 'Ant Design',
           },
           {
             label: <a href="https://prolayout.ant.design/">Pro Layout</a>,
             value: 'Pro Layout',
           },
         ]}
-        // onSearch={() => {}}
       />
       <Tooltip
         title={formatMessage({
@@ -53,15 +51,19 @@ const GlobalHeaderRight = (props) => {
         })}
       >
         <a
+          style={{
+            color: 'inherit',
+          }}
           target="_blank"
-          href="https://pro.ant.design/docs/getting-started"
+          href="https://hankaibo.github.io/myantdpro-docs/"
           rel="noopener noreferrer"
           className={styles.action}
         >
           <QuestionCircleOutlined />
         </a>
       </Tooltip>
-      <Avatar />
+      <NoticeIconView />
+      <Avatar menu />
       {REACT_APP_ENV && (
         <span>
           <Tag color={ENVTagColor[REACT_APP_ENV]}>{REACT_APP_ENV}</Tag>

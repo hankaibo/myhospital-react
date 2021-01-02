@@ -1,20 +1,13 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Tree, Table, Switch, Button, Divider, Popconfirm, message } from 'antd';
-import { PageHeaderWrapper } from '@ant-design/pro-layout';
-import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
-} from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-layout';
+import { ArrowUpOutlined, ArrowDownOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { connect } from 'umi';
-import { isArray, isEmpty, isEqual } from 'lodash';
 import Authorized from '@/utils/Authorized';
 import NoMatch from '@/components/Authorized/NoMatch';
-import { getValue } from '@/utils/utils';
+import RenderPropsModal from '@/components/RenderModal';
+import { getValue, isArray, isEmpty } from '@/utils/utils';
 import MenuForm from './components/MenuForm';
-import styles from '../System.less';
 
 const { DirectoryTree } = Tree;
 const MENU_TYPE = 1;
@@ -57,7 +50,7 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
       setCurrentMenu({ ...tree[0] });
       setFirst(false);
     }
-  }, [first, tree]);
+  }, [first, tree, params]);
 
   // 【查询菜单列表】
   useEffect(() => {
@@ -94,7 +87,6 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
       payload: {
         id,
         status: checked,
-        searchParams: params,
       },
     });
   };
@@ -110,7 +102,6 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
       payload: {
         sourceId: record.id,
         targetId,
-        searchParams: params,
       },
       callback: () => {
         message.success('移动菜单成功。');
@@ -125,7 +116,6 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
       type: 'systemMenu/delete',
       payload: {
         id,
-        searchParams: params,
       },
       callback: () => {
         message.success('删除菜单成功。');
@@ -175,11 +165,7 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
       title: '排序',
       render: (text, record, index) => (
         <Authorized authority="system:menu:move" noMatch={null}>
-          <ArrowUpOutlined
-            className="icon"
-            title="向上"
-            onClick={() => handleMove(record, index - 1)}
-          />
+          <ArrowUpOutlined className="icon" title="向上" onClick={() => handleMove(record, index - 1)} />
           <Divider type="vertical" />
           <ArrowDownOutlined
             className="icon"
@@ -197,9 +183,16 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
       render: (text, record) => (
         <>
           <Authorized authority="system:menu:update" noMatch={null}>
-            <MenuForm isEdit id={record.id} searchParams={params}>
-              <EditOutlined title="编辑" className="icon" />
-            </MenuForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <EditOutlined title="编辑" className="icon" onClick={showModalHandler} />
+                  <Modal title="编辑">
+                    <MenuForm isEdit id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:menu:delete" noMatch={null}>
@@ -218,15 +211,10 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
   ];
 
   return (
-    <PageHeaderWrapper title={false}>
+    <PageContainer title={false}>
       <Row gutter={8}>
         <Col xs={24} sm={24} md={24} lg={6} xl={6}>
-          <Card
-            title="菜单树"
-            bordered={false}
-            style={{ marginTop: 10 }}
-            bodyStyle={{ padding: '15px' }}
-          >
+          <Card title="菜单树" bordered={false} style={{ marginTop: 10 }} bodyStyle={{ padding: '15px' }}>
             {isArray(tree) && tree.length > 0 && (
               <DirectoryTree
                 expandAction="doubleClick"
@@ -246,14 +234,21 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
             bodyStyle={{ padding: '15px' }}
             style={{ marginTop: 10 }}
           >
-            <div className={styles.tableList}>
-              <div className={styles.tableListOperator}>
+            <div className="tableList">
+              <div className="tableListOperator">
                 <Authorized authority="system:menu:add" noMatch={null}>
-                  <MenuForm id={currentMenu && currentMenu.id} searchParams={params}>
-                    <Button type="primary" title="新增">
-                      <PlusOutlined />
-                    </Button>
-                  </MenuForm>
+                  <RenderPropsModal>
+                    {({ showModalHandler, Modal }) => (
+                      <>
+                        <Button type="primary" title="新增" onClick={showModalHandler}>
+                          <PlusOutlined />
+                        </Button>
+                        <Modal title="新增">
+                          <MenuForm id={currentMenu && currentMenu.id} />
+                        </Modal>
+                      </>
+                    )}
+                  </RenderPropsModal>
                 </Authorized>
               </div>
               <Table
@@ -269,10 +264,8 @@ const Menu = connect(({ systemMenu: { tree, list }, loading }) => ({
           </Card>
         </Col>
       </Row>
-    </PageHeaderWrapper>
+    </PageContainer>
   );
 });
 
-const areEqual = (prevProps, nextProps) => isEqual(prevProps, nextProps);
-
-export default memo(Menu, areEqual);
+export default Menu;

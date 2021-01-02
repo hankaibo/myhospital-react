@@ -1,6 +1,5 @@
-import { Avatar, List } from 'antd';
-
 import React from 'react';
+import { Avatar, List } from 'antd';
 import classNames from 'classnames';
 import styles from './NoticeList.less';
 
@@ -19,10 +18,7 @@ const NoticeList = ({
   if (!data || data.length === 0) {
     return (
       <div className={styles.notFound}>
-        <img
-          src="https://gw.alipayobjects.com/zos/rmsportal/sAuJeJzSKbUmHfBQRzmZ.svg"
-          alt="not found"
-        />
+        <img src="https://gw.alipayobjects.com/zos/rmsportal/sAuJeJzSKbUmHfBQRzmZ.svg" alt="not found" />
         <div>{emptyText}</div>
       </div>
     );
@@ -46,11 +42,7 @@ const NoticeList = ({
           ) : null;
 
           return (
-            <List.Item
-              className={itemCls}
-              key={item.key || i}
-              onClick={() => onClick && onClick(item)}
-            >
+            <List.Item className={itemCls} key={item.key || i} onClick={() => onClick && onClick(item)}>
               <List.Item.Meta
                 className={styles.meta}
                 avatar={leftIcon}

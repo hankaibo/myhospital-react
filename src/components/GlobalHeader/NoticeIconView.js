@@ -1,50 +1,44 @@
-import React, { Component } from 'react';
+import React, { useEffect } from 'react';
 import { Tag, message } from 'antd';
-
-import { connect, injectIntl, formatMessage } from 'umi';
-import groupBy from 'lodash/groupBy';
+import { connect, useIntl } from 'umi';
 import moment from 'moment';
 import NoticeIcon from '../NoticeIcon';
 import styles from './index.less';
 
-class NoticeIconView extends Component {
-  componentDidMount() {
-    const { dispatch } = this.props;
+const NoticeIconView = ({ notices = [], currentUser, fetchingNotices, dispatch }) => {
+  const { formatMessage } = useIntl();
 
-    if (dispatch) {
-      dispatch({
-        type: 'global/fetchNotices',
-      });
-    }
-  }
+  useEffect(() => {
+    dispatch({
+      type: 'user/fetchMessage',
+      payload: {
+        current: 1,
+        pageSize: 5,
+        receiveId: currentUser.id,
+        isPublish: 1,
+        type: null,
+      },
+    });
+  }, [dispatch]);
 
-  changeReadState = (clickedItem) => {
+  const changeReadState = (clickedItem) => {
     const { id } = clickedItem;
-    const { dispatch } = this.props;
-
-    if (dispatch) {
-      dispatch({
-        type: 'global/changeNoticeReadState',
-        payload: id,
-      });
-    }
+    dispatch({
+      type: 'user/changeNoticeReadState',
+      payload: id,
+    });
   };
 
-  handleNoticeClear = (title, key) => {
-    const { dispatch } = this.props;
+  const handleNoticeClear = (title, key) => {
     message.success(`${formatMessage({ id: 'component.noticeIcon.cleared' })} ${title}`);
 
-    if (dispatch) {
-      dispatch({
-        type: 'global/clearNotices',
-        payload: key,
-      });
-    }
+    dispatch({
+      type: 'user/clearNotices',
+      payload: key,
+    });
   };
 
-  getNoticeData = () => {
-    const { notices = [] } = this.props;
-
+  const getNoticeData = () => {
     if (!notices || notices.length === 0 || !Array.isArray(notices)) {
       return {};
     }
@@ -52,8 +46,8 @@ class NoticeIconView extends Component {
     const newNotices = notices.map((notice) => {
       const newNotice = { ...notice };
 
-      if (newNotice.datetime) {
-        newNotice.datetime = moment(notice.datetime).fromNow();
+      if (newNotice.createTime) {
+        newNotice.createTime = moment(notice.createTime).fromNow();
       }
 
       if (newNotice.id) {
@@ -76,10 +70,13 @@ class NoticeIconView extends Component {
 
       return newNotice;
     });
-    return groupBy(newNotices, 'type');
+    return newNotices.reduce((acc, cur, idx, src, k = cur.type) => {
+      (acc[k] || (acc[k] = [])).push(cur);
+      return acc;
+    }, {});
   };
 
-  getUnreadData = (noticeData) => {
+  const getUnreadData = (noticeData) => {
     const unreadMsg = {};
     Object.keys(noticeData).forEach((key) => {
       const value = noticeData[key];
@@ -95,60 +92,53 @@ class NoticeIconView extends Component {
     return unreadMsg;
   };
 
-  render() {
-    const { currentUser, fetchingNotices, onNoticeVisibleChange } = this.props;
-    const noticeData = this.getNoticeData();
-    const unreadMsg = this.getUnreadData(noticeData);
-    return (
-      <NoticeIcon
-        className={styles.action}
-        count={currentUser && currentUser.unreadCount}
-        onItemClick={(item) => {
-          this.changeReadState(item);
-        }}
-        loading={fetchingNotices}
-        clearText={formatMessage({ id: 'component.noticeIcon.clear' })}
-        viewMoreText={formatMessage({ id: 'component.noticeIcon.view-more' })}
-        onClear={this.handleNoticeClear}
-        onPopupVisibleChange={onNoticeVisibleChange}
-        onViewMore={() => message.info('Click on view more')}
-        clearClose
-      >
-        <NoticeIcon.Tab
-          tabKey="notification"
-          count={unreadMsg.notification}
-          list={noticeData.notification}
-          title={formatMessage({ id: 'component.globalHeader.notification' })}
-          emptyText={formatMessage({ id: 'component.globalHeader.notification.empty' })}
-          showViewMore
-        />
-        <NoticeIcon.Tab
-          tabKey="message"
-          count={unreadMsg.message}
-          list={noticeData.message}
-          title={formatMessage({ id: 'component.globalHeader.message' })}
-          emptyText={formatMessage({ id: 'component.globalHeader.message.empty' })}
-          showViewMore
-        />
-        <NoticeIcon.Tab
-          tabKey="event"
-          title={formatMessage({ id: 'component.globalHeader.event' })}
-          emptyText={formatMessage({ id: 'component.globalHeader.event.empty' })}
-          count={unreadMsg.event}
-          list={noticeData.event}
-          showViewMore
-        />
-      </NoticeIcon>
-    );
-  }
-}
+  const noticeData = getNoticeData();
+  const unreadMsg = getUnreadData(noticeData);
+  return (
+    <NoticeIcon
+      className={styles.action}
+      count={currentUser && currentUser.unreadCount}
+      onItemClick={(item) => {
+        changeReadState(item);
+      }}
+      loading={fetchingNotices}
+      clearText={formatMessage({ id: 'component.noticeIcon.clear' })}
+      viewMoreText={formatMessage({ id: 'component.noticeIcon.view-more' })}
+      onClear={handleNoticeClear}
+      onViewMore={() => message.info('Click on view more')}
+      clearClose
+    >
+      <NoticeIcon.Tab
+        tabKey="notification"
+        count={unreadMsg.notification}
+        list={noticeData[1]}
+        title={formatMessage({ id: 'component.globalHeader.notification' })}
+        emptyText={formatMessage({ id: 'component.globalHeader.notification.empty' })}
+        showViewMore
+      />
+      <NoticeIcon.Tab
+        tabKey="message"
+        count={unreadMsg.message}
+        list={noticeData[2]}
+        title={formatMessage({ id: 'component.globalHeader.message' })}
+        emptyText={formatMessage({ id: 'component.globalHeader.message.empty' })}
+        showViewMore
+      />
+      <NoticeIcon.Tab
+        tabKey="event"
+        count={unreadMsg.event}
+        list={noticeData[3]}
+        title={formatMessage({ id: 'component.globalHeader.event' })}
+        emptyText={formatMessage({ id: 'component.globalHeader.event.empty' })}
+        showViewMore
+      />
+    </NoticeIcon>
+  );
+};
 
-export default injectIntl(
-  connect(({ user, global, loading }) => ({
-    currentUser: user.currentUser,
-    collapsed: global.collapsed,
-    fetchingMoreNotices: loading.effects['global/fetchMoreNotices'],
-    fetchingNotices: loading.effects['global/fetchNotices'],
-    notices: global.notices,
-  }))(NoticeIconView),
-);
+export default connect(({ user, global, loading }) => ({
+  currentUser: user.currentUser,
+  notices: user.messageList,
+  collapsed: global.collapsed,
+  fetchingNotices: loading.effects['user/fetchMessage'],
+}))(NoticeIconView);

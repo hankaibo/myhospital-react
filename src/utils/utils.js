@@ -15,8 +15,8 @@ export const getPageQuery = () => parse(window.location.href.split('?')[1]);
  */
 export const getAuthorityFromRouter = (router, pathname) => {
   const authority = router.find(
-    ({ routes, path = '/' }) =>
-      (path && pathToRegexp(path).exec(pathname)) ||
+    ({ routes, path = '/', target = '_self' }) =>
+      (path && target !== '_blank' && pathToRegexp(path).exec(pathname)) ||
       (routes && getAuthorityFromRouter(routes, pathname)),
   );
   if (authority) return authority;
@@ -85,4 +85,32 @@ export const getValue = (obj) => {
 export const difference = (a, b) => {
   const s = new Set(b);
   return a.filter((x) => !s.has(x));
+};
+
+// 仿lodash
+export const isArray = (obj) => Array.isArray(obj);
+export const isEmpty = (obj) => [Object, Array].includes((obj || {}).constructor) && !Object.entries(obj || {}).length;
+
+// localstorage 简单封装
+export const getItem = (key, defaultValue) => {
+  const data = localStorage.getItem(key);
+  if (!data) return defaultValue;
+
+  let val = '';
+  try {
+    val = JSON.parse(data);
+  } catch (e) {
+    val = data;
+  }
+
+  return val !== undefined ? val : defaultValue;
+};
+
+export const setItem = (key, value) => {
+  if (value === undefined) {
+    return localStorage.removeItem(key);
+  }
+
+  localStorage.setItem(key, JSON.stringify(value));
+  return value;
 };

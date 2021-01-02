@@ -1,29 +1,15 @@
-import React, { useState, useEffect, memo } from 'react';
-import {
-  Row,
-  Col,
-  Card,
-  Tree,
-  Table,
-  Input,
-  Switch,
-  Button,
-  Popconfirm,
-  Divider,
-  message,
-} from 'antd';
-import { PageHeaderWrapper } from '@ant-design/pro-layout';
-import { DownOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Tree, Table, Input, Switch, Button, Popconfirm, Divider, message } from 'antd';
+import { PageContainer } from '@ant-design/pro-layout';
+import { PlusOutlined, DeleteOutlined, EditOutlined, UserSwitchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { connect } from 'umi';
-import { isEqual, isArray, isEmpty } from 'lodash';
 import Authorized from '@/utils/Authorized';
 import NoMatch from '@/components/Authorized/NoMatch';
-import IconFont from '@/components/IconFont';
-import { getValue } from '@/utils/utils';
+import RenderPropsModal from '@/components/RenderModal';
+import { getValue, isArray, isEmpty } from '@/utils/utils';
 import UserForm from './components/UserForm';
 import UserRoleForm from './components/UserRoleForm';
 import UserPasswordForm from './components/UserPasswordForm';
-import styles from '../System.less';
 
 const sexText = {
   1: '男',
@@ -75,7 +61,7 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
       setCurrentDepartment({ ...tree[0] });
       setFirst(false);
     }
-  }, [first, tree]);
+  }, [first, tree, params]);
 
   // 【查询用户列表】
   useEffect(() => {
@@ -113,14 +99,13 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
       payload: {
         id,
         status: checked,
-        searchParams: params,
       },
     });
   };
 
   // 【搜索】
   const handleFormSubmit = () => {
-    message.info('演示环境，暂未开放。');
+    message.info('暂未开放。');
   };
 
   // 【批量删除用户】
@@ -129,8 +114,9 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
     dispatch({
       type: 'systemUser/deleteBatch',
       payload: {
-        ids: selectedRowKeys,
-        searchParams: params,
+        userIds: selectedRowKeys,
+        // 多部门用户，所以带上部门id
+        departmentId: params.departmentId,
       },
       callback: () => {
         setSelectedRowKeys([]);
@@ -146,7 +132,8 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
       type: 'systemUser/delete',
       payload: {
         id,
-        searchParams: params,
+        // 多部门用户，所以带上部门id
+        departmentId: params.departmentId,
       },
       callback: () => {
         setSelectedRowKeys([]);
@@ -230,6 +217,7 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
         { text: '启用', value: 1 },
       ],
       filterMultiple: false,
+      width: 110,
       render: (text, record) => (
         <Authorized authority="system:user:status" noMatch={NoMatch(text)}>
           <Switch checked={text} onClick={(checked) => toggleStatus(checked, record)} />
@@ -248,15 +236,22 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
     },
     {
       title: '操作',
-      width: 170,
+      align: 'center',
       fixed: 'right',
       render: (text, record) => (
         <>
           {/* Note: system:user:xxx为【资源保护】菜单中用户管理修改接口(system:user:update)的编码名称。必须两者一致才能动态隐藏显示按钮。 */}
           <Authorized authority="system:user:update" noMatch={null}>
-            <UserForm isEdit id={record.id} searchParams={params}>
-              <EditOutlined title="编辑" className="icon" />
-            </UserForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <EditOutlined title="编辑" className="icon" onClick={showModalHandler} />
+                  <Modal title="编辑">
+                    <UserForm isEdit id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:user:delete" noMatch={null}>
@@ -271,15 +266,34 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:user:grant" noMatch={null}>
-            <UserRoleForm id={record.id} disabled={!record.status}>
-              <IconFont type="icon-role" title="分配角色" className="icon" />
-            </UserRoleForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <UserSwitchOutlined
+                    title="分配角色"
+                    className="icon"
+                    disabled={!record.status}
+                    onClick={showModalHandler}
+                  />
+                  <Modal title="分配角色">
+                    <UserRoleForm id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:user:pwd:reset" noMatch={null}>
-            <UserPasswordForm id={record.id} username={record.username}>
-              <IconFont type="icon-reset" title="重置密码" className="icon" />
-            </UserPasswordForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <ReloadOutlined title="重置密码" className="icon" onClick={showModalHandler} />
+                  <Modal title={`您确定要重置 ${record.username} 的密码吗？`}>
+                    <UserPasswordForm id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
           </Authorized>
         </>
       ),
@@ -287,19 +301,13 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
   ];
 
   return (
-    <PageHeaderWrapper title={false} content={mainSearch}>
+    <PageContainer title={false} content={mainSearch}>
       <Row gutter={8}>
         <Col xs={24} sm={24} md={24} lg={6} xl={6}>
-          <Card
-            title="组织"
-            bordered={false}
-            style={{ marginTop: 10 }}
-            bodyStyle={{ padding: '15px' }}
-          >
+          <Card title="组织" bordered={false} style={{ marginTop: 10 }} bodyStyle={{ padding: '15px' }}>
             {isArray(tree) && !isEmpty(tree) && (
               <Tree
                 showLine
-                switcherIcon={<DownOutlined />}
                 defaultExpandedKeys={[tree[0].key]}
                 defaultSelectedKeys={[tree[0].key]}
                 onSelect={handleSelect}
@@ -315,17 +323,21 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
             style={{ marginTop: 10 }}
             bodyStyle={{ padding: '15px' }}
           >
-            <div className={styles.tableList}>
-              <div className={styles.tableListOperator}>
+            <div className="tableList">
+              <div className="tableListOperator">
                 <Authorized authority="system:user:add" noMatch={null}>
-                  <UserForm
-                    departmentId={currentDepartment ? currentDepartment.id : null}
-                    searchParams={params}
-                  >
-                    <Button type="primary" title="新增">
-                      <PlusOutlined />
-                    </Button>
-                  </UserForm>
+                  <RenderPropsModal>
+                    {({ showModalHandler, Modal }) => (
+                      <>
+                        <Button type="primary" title="新增" onClick={showModalHandler}>
+                          <PlusOutlined />
+                        </Button>
+                        <Modal title="新增">
+                          <UserForm departmentId={currentDepartment ? currentDepartment.id : null} />
+                        </Modal>
+                      </>
+                    )}
+                  </RenderPropsModal>
                 </Authorized>
                 <Authorized authority="system:user:batchDelete" noMatch={null}>
                   <Popconfirm
@@ -350,15 +362,14 @@ const User = connect(({ systemUser: { tree, list, pagination }, loading }) => ({
                 pagination={pagination}
                 rowSelection={rowSelection}
                 onChange={handleTableChange}
+                scroll={{ x: true }}
               />
             </div>
           </Card>
         </Col>
       </Row>
-    </PageHeaderWrapper>
+    </PageContainer>
   );
 });
 
-const areEqual = (prevProps, nextProps) => isEqual(prevProps, nextProps);
-
-export default memo(User, areEqual);
+export default User;

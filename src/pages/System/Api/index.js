@@ -1,6 +1,6 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Tree, Table, Switch, Button, Divider, Popconfirm, message } from 'antd';
-import { PageHeaderWrapper } from '@ant-design/pro-layout';
+import { PageContainer } from '@ant-design/pro-layout';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -10,13 +10,12 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { connect } from 'umi';
-import { isArray, isEmpty, isEqual } from 'lodash';
 import Authorized from '@/utils/Authorized';
 import NoMatch from '@/components/Authorized/NoMatch';
-import { getValue } from '@/utils/utils';
+import RenderPropsModal from '@/components/RenderModal';
+import { getValue, isArray, isEmpty } from '@/utils/utils';
 import ApiForm from './components/ApiForm';
 import UploadForm from './components/UploadTable';
-import styles from '../System.less';
 
 const { DirectoryTree } = Tree;
 const API_TYPE = 2;
@@ -59,7 +58,7 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
       setCurrentMenu({ ...tree[0] });
       setFirst(false);
     }
-  }, [first, tree]);
+  }, [first, tree, params]);
 
   // 【查询菜单列表】
   useEffect(() => {
@@ -96,7 +95,6 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
       payload: {
         id,
         status: checked,
-        searchParams: params,
       },
     });
   };
@@ -112,7 +110,6 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
       payload: {
         sourceId: record.id,
         targetId,
-        searchParams: params,
       },
       callback: () => {
         message.success('移动接口成功。');
@@ -127,7 +124,6 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
       type: 'systemApi/delete',
       payload: {
         id,
-        searchParams: params,
       },
       callback: () => {
         message.success('删除接口成功。');
@@ -159,10 +155,12 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
     {
       title: '接口url',
       dataIndex: 'uri',
+      ellipsis: true,
     },
     {
       title: '接口编码',
       dataIndex: 'code',
+      ellipsis: true,
     },
     {
       title: '方法类型',
@@ -188,11 +186,7 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
       width: 90,
       render: (text, record, index) => (
         <Authorized authority="system:api:move" noMatch={null}>
-          <ArrowUpOutlined
-            className="icon"
-            title="向上"
-            onClick={() => handleMove(record, index - 1)}
-          />
+          <ArrowUpOutlined className="icon" title="向上" onClick={() => handleMove(record, index - 1)} />
           <Divider type="vertical" />
           <ArrowDownOutlined
             className="icon"
@@ -210,9 +204,16 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
       render: (text, record) => (
         <>
           <Authorized authority="system:api:update" noMatch={null}>
-            <ApiForm isEdit id={record.id} searchParams={params}>
-              <EditOutlined title="编辑" className="icon" />
-            </ApiForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <EditOutlined title="编辑" className="icon" onClick={showModalHandler} />
+                  <Modal title="编辑">
+                    <ApiForm isEdit id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:api:delete" noMatch={null}>
@@ -231,15 +232,10 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
   ];
 
   return (
-    <PageHeaderWrapper title={false}>
+    <PageContainer title={false}>
       <Row gutter={8}>
         <Col xs={24} sm={24} md={24} lg={6} xl={6}>
-          <Card
-            title="菜单树"
-            bordered={false}
-            style={{ marginTop: 10 }}
-            bodyStyle={{ padding: '15px' }}
-          >
+          <Card title="菜单树" bordered={false} style={{ marginTop: 10 }} bodyStyle={{ padding: '15px' }}>
             {isArray(tree) && tree.length > 0 && (
               <DirectoryTree
                 expandAction="doubleClick"
@@ -258,21 +254,35 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
             bodyStyle={{ padding: '15px' }}
             style={{ marginTop: 10 }}
           >
-            <div className={styles.tableList}>
-              <div className={styles.tableListOperator}>
+            <div className="tableList">
+              <div className="tableListOperator">
                 <Authorized authority="system:api:add" noMatch={null}>
-                  <ApiForm id={currentMenu && currentMenu.id} searchParams={params}>
-                    <Button type="primary" title="新增">
-                      <PlusOutlined />
-                    </Button>
-                  </ApiForm>
+                  <RenderPropsModal>
+                    {({ showModalHandler, Modal }) => (
+                      <>
+                        <Button type="primary" title="新增" onClick={showModalHandler}>
+                          <PlusOutlined />
+                        </Button>
+                        <Modal title="新增">
+                          <ApiForm id={currentMenu && currentMenu.id} />
+                        </Modal>
+                      </>
+                    )}
+                  </RenderPropsModal>
                 </Authorized>
                 <Authorized authority="system:api:importBatch" noMatch={null}>
-                  <UploadForm>
-                    <Button title="上传">
-                      <UploadOutlined />
-                    </Button>
-                  </UploadForm>
+                  <RenderPropsModal>
+                    {({ showModalHandler, Modal }) => (
+                      <>
+                        <Button title="上传" onClick={showModalHandler}>
+                          <UploadOutlined />
+                        </Button>
+                        <Modal title="上传" width={800}>
+                          <UploadForm />
+                        </Modal>
+                      </>
+                    )}
+                  </RenderPropsModal>
                 </Authorized>
               </div>
               <Table
@@ -288,10 +298,8 @@ const Api = connect(({ systemApi: { tree, list }, loading }) => ({
           </Card>
         </Col>
       </Row>
-    </PageHeaderWrapper>
+    </PageContainer>
   );
 });
 
-const areEqual = (prevProps, nextProps) => isEqual(prevProps, nextProps);
-
-export default memo(Api, areEqual);
+export default Api;

@@ -1,51 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Tree, Button, message } from 'antd';
+import { Form, Tree, Button, message } from 'antd';
 import { connect } from 'umi';
-import { isEmpty } from 'lodash';
-import { difference, getParentKey, getPlainNode } from '@/utils/utils';
-import styles from '@/pages/System/System.less';
+import { difference, getParentKey, getPlainNode, isEmpty } from '@/utils/utils';
 
 const UserRoleForm = connect(({ systemUser: { treeData, checkedKeys }, loading }) => ({
   roleTreeData: treeData,
   roleCheckedKeys: checkedKeys,
-  loading: loading.effects['systemUser/fetchRoleTree'],
-}))(({ loading, children, disabled, id, roleTreeData, roleCheckedKeys, dispatch }) => {
+  loading: loading.effects['systemUser/fetchRoleTree'] || loading.effects['systemUser/grantUserRole'],
+}))(({ loading, id, roleTreeData, roleCheckedKeys, closeModal, dispatch }) => {
   const [form] = Form.useForm();
-  const { setFieldsValue } = form;
+  const { setFieldsValue, resetFields } = form;
 
   const [expandedKeys, setExpandedKeys] = useState([]);
   const [checkedKeys, setCheckedKeys] = useState([]);
   const [autoExpandParent, setAutoExpandParent] = useState(false);
-  // 【模态框显示隐藏属性】
-  const [visible, setVisible] = useState(false);
-
-  // 【模态框显示隐藏函数】
-  const showModalHandler = (e) => {
-    if (e) e.stopPropagation();
-    setVisible(true);
-  };
-  const hideModelHandler = () => {
-    setFieldsValue();
-    setVisible(false);
-  };
 
   // 【获取要修改用户的角色】
   useEffect(() => {
-    if (visible) {
-      dispatch({
-        type: 'systemUser/fetchRoleTree',
-        payload: {
-          id,
-          status: 1,
-        },
-      });
-    }
+    dispatch({
+      type: 'systemUser/fetchRoleTree',
+      payload: {
+        id,
+        status: 1,
+      },
+    });
     return () => {
       dispatch({
         type: 'systemUser/clearRoleTree',
       });
     };
-  }, [visible, id, dispatch]);
+  }, [id, dispatch]);
 
   // 【回显树复选择框】
   useEffect(() => {
@@ -64,7 +48,7 @@ const UserRoleForm = connect(({ systemUser: { treeData, checkedKeys }, loading }
       // 同步到表单
       setFieldsValue({ ids: roleCheckedKeys });
     }
-  }, [roleCheckedKeys, setFieldsValue]);
+  }, [roleCheckedKeys, setFieldsValue, roleTreeData]);
 
   // 【树操作】
   const onExpand = (values) => {
@@ -81,59 +65,49 @@ const UserRoleForm = connect(({ systemUser: { treeData, checkedKeys }, loading }
   // 【授权】
   const handleGrant = (values) => {
     const { ids } = values;
+    if (!ids) {
+      closeModal();
+    }
     const oldCheckedKeys = [...roleCheckedKeys];
-    const plusRole = difference(ids, oldCheckedKeys);
-    const minusRole = difference(oldCheckedKeys, ids);
+    const plusRoleIds = difference(ids, oldCheckedKeys);
+    const minusRoleIds = difference(oldCheckedKeys, ids);
 
     dispatch({
       type: 'systemUser/grantUserRole',
       payload: {
         id,
-        plusRole,
-        minusRole,
+        plusRoleIds,
+        minusRoleIds,
       },
       callback: () => {
-        hideModelHandler();
+        resetFields();
+        closeModal();
         message.success('用户分配角色成功。');
       },
     });
   };
 
   return (
-    <>
-      <span className={disabled ? 'disabled' : ''} onClick={disabled ? null : showModalHandler}>
-        <span>{children}</span>
-      </span>
-      <Modal
-        forceRender
-        destroyOnClose
-        title="角色配置"
-        visible={visible}
-        onCancel={hideModelHandler}
-        footer={null}
-      >
-        <Form form={form} name="userRoleForm" className={styles.form} onFinish={handleGrant}>
-          <Form.Item name="ids">
-            <Tree
-              checkable
-              checkStrictly
-              autoExpandParent={autoExpandParent}
-              expandedKeys={expandedKeys}
-              onExpand={onExpand}
-              checkedKeys={checkedKeys}
-              onCheck={handleCheck}
-              treeData={roleTreeData}
-            />
-          </Form.Item>
-          <Form.Item style={{ textAlign: 'right' }}>
-            <Button onClick={hideModelHandler}>取消</Button>
-            <Button type="primary" loading={loading} htmlType="submit">
-              确定
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
+    <Form form={form} name="userRoleForm" className="form" onFinish={handleGrant}>
+      <Form.Item name="ids">
+        <Tree
+          checkable
+          checkStrictly
+          autoExpandParent={autoExpandParent}
+          expandedKeys={expandedKeys}
+          onExpand={onExpand}
+          checkedKeys={checkedKeys}
+          onCheck={handleCheck}
+          treeData={roleTreeData}
+        />
+      </Form.Item>
+      <Form.Item style={{ textAlign: 'right' }}>
+        <Button onClick={closeModal}>取消</Button>
+        <Button type="primary" loading={loading} htmlType="submit">
+          确定
+        </Button>
+      </Form.Item>
+    </Form>
   );
 });
 

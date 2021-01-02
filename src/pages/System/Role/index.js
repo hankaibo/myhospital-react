@@ -1,23 +1,21 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Tree, Table, Switch, Button, Popconfirm, Divider, message } from 'antd';
-import { PageHeaderWrapper } from '@ant-design/pro-layout';
+import { PageContainer } from '@ant-design/pro-layout';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
-  DownOutlined,
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
 import { connect } from 'umi';
-import { isEqual, isArray, isEmpty } from 'lodash';
 import Authorized from '@/utils/Authorized';
 import NoMatch from '@/components/Authorized/NoMatch';
-import { getValue } from '@/utils/utils';
+import RenderPropsModal from '@/components/RenderModal';
+import { getValue, isArray, isEmpty } from '@/utils/utils';
 import RoleForm from './components/RoleForm';
 import RoleResourceForm from './components/RoleResourceForm';
-import styles from '../System.less';
 
 const Role = connect(({ systemRole: { tree, list }, loading }) => ({
   tree,
@@ -50,7 +48,7 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
       setCurrentRole({ ...tree[0] });
       setFirst(false);
     }
-  }, [first, tree]);
+  }, [first, tree, params]);
 
   // 【查询角色列表】
   useEffect(() => {
@@ -87,7 +85,6 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
       payload: {
         id,
         status: checked,
-        searchParams: params,
       },
     });
   };
@@ -103,7 +100,6 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
       payload: {
         sourceId: record.id,
         targetId,
-        searchParams: params,
       },
       callback: () => {
         message.success('移动角色成功。');
@@ -118,7 +114,6 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
       type: 'systemRole/delete',
       payload: {
         id,
-        searchParams: params,
       },
       callback: () => {
         message.success('删除角色成功。');
@@ -168,11 +163,7 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
       title: '排序',
       render: (text, record, index) => (
         <Authorized authority="system:role:move" noMatch="--">
-          <ArrowUpOutlined
-            className="icon"
-            title="向上"
-            onClick={() => handleMove(record, index - 1)}
-          />
+          <ArrowUpOutlined className="icon" title="向上" onClick={() => handleMove(record, index - 1)} />
           <Divider type="vertical" />
           <ArrowDownOutlined
             className="icon"
@@ -195,9 +186,16 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
       render: (text, record) => (
         <>
           <Authorized authority="system:role:update" noMatch={null}>
-            <RoleForm isEdit id={record.id} searchParams={params}>
-              <EditOutlined title="编辑" className="icon" />
-            </RoleForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <EditOutlined title="编辑" className="icon" onClick={showModalHandler} />
+                  <Modal title="编辑">
+                    <RoleForm isEdit id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:role:delete" noMatch={null}>
@@ -212,9 +210,16 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
             <Divider type="vertical" />
           </Authorized>
           <Authorized authority="system:role:grant" noMatch={null}>
-            <RoleResourceForm id={record.id} disabled={!record.status}>
-              <KeyOutlined title="分配资源" className="icon" />
-            </RoleResourceForm>
+            <RenderPropsModal>
+              {({ showModalHandler, Modal }) => (
+                <>
+                  <KeyOutlined title="分配资源" className="icon" disabled={!record.status} onClick={showModalHandler} />
+                  <Modal title="分配资源">
+                    <RoleResourceForm id={record.id} />
+                  </Modal>
+                </>
+              )}
+            </RenderPropsModal>
           </Authorized>
         </>
       ),
@@ -222,19 +227,13 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
   ];
 
   return (
-    <PageHeaderWrapper title={false}>
+    <PageContainer title={false}>
       <Row gutter={8}>
         <Col xs={24} sm={24} md={24} lg={6} xl={6}>
-          <Card
-            title="角色树"
-            bordered={false}
-            style={{ marginTop: 10 }}
-            bodyStyle={{ padding: '15px' }}
-          >
+          <Card title="角色树" bordered={false} style={{ marginTop: 10 }} bodyStyle={{ padding: '15px' }}>
             {isArray(tree) && !isEmpty(tree) && (
               <Tree
                 showLine
-                switcherIcon={<DownOutlined />}
                 defaultExpandedKeys={[tree[0].key]}
                 defaultSelectedKeys={[tree[0].key]}
                 onSelect={handleSelect}
@@ -250,14 +249,21 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
             style={{ marginTop: 10 }}
             bodyStyle={{ padding: '15px' }}
           >
-            <div className={styles.tableList}>
-              <div className={styles.tableListOperator}>
+            <div className="tableList">
+              <div className="tableListOperator">
                 <Authorized authority="system:role:add" noMatch={null}>
-                  <RoleForm id={currentRole && currentRole.id} searchParams={params}>
-                    <Button type="primary" title="新增">
-                      <PlusOutlined />
-                    </Button>
-                  </RoleForm>
+                  <RenderPropsModal>
+                    {({ showModalHandler, Modal }) => (
+                      <>
+                        <Button type="primary" title="新增" onClick={showModalHandler}>
+                          <PlusOutlined />
+                        </Button>
+                        <Modal title="新增">
+                          <RoleForm id={currentRole && currentRole.id} />
+                        </Modal>
+                      </>
+                    )}
+                  </RenderPropsModal>
                 </Authorized>
               </div>
               <Table
@@ -274,10 +280,8 @@ const Role = connect(({ systemRole: { tree, list }, loading }) => ({
           </Card>
         </Col>
       </Row>
-    </PageHeaderWrapper>
+    </PageContainer>
   );
 });
 
-const areEqual = (prevProps, nextProps) => isEqual(prevProps, nextProps);
-
-export default memo(Role, areEqual);
+export default Role;

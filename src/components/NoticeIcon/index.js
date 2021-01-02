@@ -1,10 +1,8 @@
-import { BellOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
 import { Badge, Spin, Tabs } from 'antd';
-import useMergeValue from 'use-merge-value';
-import React from 'react';
+import { BellOutlined } from '@ant-design/icons';
 import classNames from 'classnames';
 import NoticeList from './NoticeList';
-
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
 
@@ -12,16 +10,7 @@ const { TabPane } = Tabs;
 
 const NoticeIcon = (props) => {
   const getNotificationBox = () => {
-    const {
-      children,
-      loading,
-      onClear,
-      onTabChange,
-      onItemClick,
-      onViewMore,
-      clearText,
-      viewMoreText,
-    } = props;
+    const { children, loading, onClear, onTabChange, onItemClick, onViewMore, clearText, viewMoreText } = props;
     if (!children) {
       return null;
     }
@@ -37,6 +26,7 @@ const NoticeIcon = (props) => {
       panes.push(
         <TabPane tab={tabTitle} key={tabKey}>
           <NoticeList
+            {...child.props}
             clearText={clearText}
             viewMoreText={viewMoreText}
             data={list}
@@ -46,7 +36,6 @@ const NoticeIcon = (props) => {
             showClear={showClear}
             showViewMore={showViewMore}
             title={title}
-            {...child.props}
           />
         </TabPane>,
       );
@@ -62,10 +51,7 @@ const NoticeIcon = (props) => {
 
   const { className, count, bell } = props;
 
-  const [visible, setVisible] = useMergeValue(false, {
-    value: props.popupVisible,
-    onChange: props.onPopupVisibleChange,
-  });
+  const [visible, setVisible] = useState(false);
   const noticeButtonClass = classNames(className, styles.noticeButton);
   const notificationBox = getNotificationBox();
   const NoticeBellIcon = bell || <BellOutlined className={styles.icon} />;
