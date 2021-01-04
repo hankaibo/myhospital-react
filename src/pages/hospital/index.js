@@ -5,7 +5,7 @@ import View from 'ol/View';
 import { XYZ, Vector as VectorSource, Cluster } from 'ol/source';
 import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
 import { ZoomToExtent, defaults as defaultControls } from 'ol/control';
-import { Draw, Modify, Snap, defaults as defaultInteractions } from 'ol/interaction';
+import { Draw, Modify, Snap } from 'ol/interaction';
 import Feature from 'ol/Feature';
 import Overlay from 'ol/Overlay';
 import { Fill, Stroke, Style, Icon, Circle as CircleStyle } from 'ol/style';
@@ -20,12 +20,15 @@ const rasterLayer = new TileLayer({
   source: new XYZ({
     // 高德
     url: 'https://webrd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&scl=1&x={x}&y={y}&z={z}',
-    crossOrigin: '',
+    // crossOrigin: '',
   }),
 });
+rasterLayer.set('name', 'rasterLayer');
 
 // 矢量图层
-const vectorSource = new VectorSource({ wrapX: true });
+const vectorSource = new VectorSource({
+  wrapX: true,
+});
 const vectorLayer = new VectorLayer({
   source: vectorSource,
   style: new Style({
@@ -38,6 +41,7 @@ const vectorLayer = new VectorLayer({
     }),
   }),
 });
+vectorLayer.set('name', 'vectorLayer');
 
 // 聚合
 const clusterSource = new Cluster({
@@ -137,17 +141,16 @@ class Hospital extends Component {
       }),
       controls: defaultControls().extend([
         new ZoomToExtent({
-          extent: fromLonLat([115.7, 39.4, 117.4, 41.6]),
+          extent: [12879665.084781753, 4779131.18122614, 13068908.219130317, 5101248.438166104],
         }),
       ]),
-      interactions: defaultInteractions().extend([new Modify({ source: vectorSource })]),
     });
 
     this.popup = new Overlay({
       element: this.popupRef.current,
       positioning: 'bottom-center',
       stopEvent: true,
-      offset: [0, -50],
+      offset: [0, 0],
     });
 
     this.map.addOverlay(this.popup);
@@ -179,29 +182,24 @@ class Hospital extends Component {
       [116.22604, 40.567708],
       [116.08733, 40.550988],
     ];
-    for (let i = 0; i < 8; i += 1) {
-      const iconFeature = new Feature({
-        geometry: new Point(fromLonLat(arr[i])),
-      });
+    for (let i = 0; i < arr.length; i += 1) {
+      const iconFeature = new Feature(new Point(fromLonLat(arr[i])));
 
       const iconStyle = new Style({
         image: new Icon({
-          anchor: [-22, -64],
-          anchorXUnits: 'pixels',
-          anchorYUnits: 'pixels',
+          anchor: [0.5, 0.96],
           size: [44, 64],
           // padding-top: 8
           // padding-left: 19
           // padding-right: 45
           // padding-bottom:24
-          offset: [19 + 88 * i, 8 + 88 * 2],
-          scale: 1,
+          offset: [19 + 88 * i, 8 + 88 * 3],
           // 1-10蓝标: [19+88*i,8+88*1]
           // 11-20蓝标：[19+88*i,8+88*2]
           // 1-10红标: [19+88*i,8+88*3]
           // 11-20红标：[19+88*i,8+88*4]
           // 1-10黄标: [19+88*i,8+88*5]
-          src: 'https://www.amap.com/assets/img/poi-marker.png',
+          src: './poi-marker.png',
         }),
       });
       iconFeature.setStyle(iconStyle);
@@ -239,15 +237,23 @@ class Hospital extends Component {
   foo = () => {
     const that = this;
     this.map.on('click', (evt) => {
-      const feature = that.map.forEachFeatureAtPixel(evt.pixel, (f) => {
-        return f;
-      });
-      if (feature) {
-        const coordinates = feature.getGeometry().getCoordinates();
-        that.popup.setPosition(coordinates);
-        alert('show');
+      const selectedFeature = that.map.forEachFeatureAtPixel(
+        evt.pixel,
+        (feature) => {
+          return feature;
+        },
+        {
+          layerFilter: (layer) => {
+            return layer.get('name') === 'vectorLayer';
+          },
+        },
+      );
+      if (selectedFeature) {
+        const coordinates = selectedFeature.getGeometry().getCoordinates();
+        that.popup.setPosition(fromLonLat(coordinates));
+        console.log('show');
       } else {
-        alert('hidden');
+        console.log('hidden');
       }
     });
 
@@ -255,9 +261,12 @@ class Hospital extends Component {
       if (e.dragging) {
         return;
       }
-      const pixel = that.map.getEventPixel(e.originalEvent);
-      const hit = that.map.hasFeatureAtPixel(pixel);
-      this.map.getTarget().style.cursor = hit ? 'pointer' : '';
+      const hit = this.map.hasFeatureAtPixel(e.pixel, {
+        layerFilter: (layer) => {
+          return layer.get('name') === 'vectorLayer';
+        },
+      });
+      this.map.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
   };
 }
