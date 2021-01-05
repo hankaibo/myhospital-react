@@ -44,6 +44,13 @@ const vectorLayer = new VectorLayer({
 });
 vectorLayer.set('name', 'vectorLayer');
 
+const iconVectorSource = new VectorSource({
+  wrapX: true,
+});
+const iconVectorLayer = new VectorLayer({
+  source: iconVectorSource,
+});
+
 // 聚合
 const clusterSource = new Cluster({
   distance: 40,
@@ -100,7 +107,7 @@ class Hospital extends Component {
     // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
-      layers: [rasterLayer, vectorLayer],
+      layers: [rasterLayer, vectorLayer, iconVectorLayer],
       view: new View({
         // projection: 'EPSG:4326',
         center: fromLonLat([116.397507, 39.908708]),
@@ -188,7 +195,7 @@ class Hospital extends Component {
         }),
       });
       iconFeature.setStyle(iconStyle);
-      vectorSource.addFeature(iconFeature);
+      iconVectorSource.addFeature(iconFeature);
     });
   };
 
