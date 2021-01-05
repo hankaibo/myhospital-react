@@ -1,5 +1,6 @@
 import React, { Component, createRef } from 'react';
-import { Select, Popover, Button } from 'antd';
+import { Select } from 'antd';
+import { connect } from 'umi';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import { XYZ, Vector as VectorSource, Cluster } from 'ol/source';
@@ -9,7 +10,7 @@ import { Draw, Modify, Snap } from 'ol/interaction';
 import Feature from 'ol/Feature';
 import Overlay from 'ol/Overlay';
 import { Fill, Stroke, Style, Icon, Circle as CircleStyle } from 'ol/style';
-import { fromLonLat } from 'ol/proj';
+import { fromLonLat, toLonLat } from 'ol/proj';
 import Point from 'ol/geom/Point';
 import 'ol/ol.css';
 
@@ -73,12 +74,7 @@ const clusterLayer = new VectorLayer({
             color: '#3399cc',
           }),
         }),
-        text: new Text({
-          text: size.toString(),
-          fill: new Fill({
-            color: '#fff',
-          }),
-        }),
+        text: new Text(size.toString()),
       });
       styleCache[size] = style;
     }
@@ -100,34 +96,8 @@ class Hospital extends Component {
     this.snap = undefined;
   }
 
-  render() {
-    const { type } = this.state;
-    const content = (
-      <div>
-        <p>Content</p>
-        <p>Content</p>
-      </div>
-    );
-    return (
-      <div style={{ position: 'relative' }}>
-        <div ref={this.olRef} style={{ height: '100vh' }}>
-          <div ref={this.popupRef}>
-            <Popover content={content} title="Title">
-              <Button type="primary">Hover me</Button>
-            </Popover>
-          </div>
-        </div>
-        <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
-          <Select defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
-            <Option value="Circle">圆形</Option>
-            <Option value="Polygon">多边形</Option>
-          </Select>
-        </div>
-      </div>
-    );
-  }
-
   componentDidMount() {
+    // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
       layers: [rasterLayer, vectorLayer],
@@ -155,35 +125,50 @@ class Hospital extends Component {
 
     this.map.addOverlay(this.popup);
 
+    // 添加交互功能
+    this.addInteractions();
+    // 添加修改功能
     this.modify = new Modify({ source: vectorSource });
     this.map.addInteraction(this.modify);
-    this.addInteractions();
-    this.foo();
-    this.handleMarker();
   }
 
-  // eslint-disable-next-line no-unused-vars
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    this.handleMarker();
+  shouldComponentUpdate(nextProps) {
+    return this.props.list !== nextProps.list;
+  }
+
+  componentDidUpdate() {
+    const { list } = this.props;
+    this.handleMarker(list);
   }
 
   componentWillUnmount() {
     this.map.setTarget(undefined);
   }
 
-  handleMarker = () => {
-    const arr = [
-      [116.407526, 39.90403],
-      [116.518097, 39.764168],
-      [115.844236, 40.476927],
-      [116.045473, 40.48194],
-      [116.16295, 40.529043],
-      [115.844236, 40.476927],
-      [116.22604, 40.567708],
-      [116.08733, 40.550988],
-    ];
-    for (let i = 0; i < arr.length; i += 1) {
-      const iconFeature = new Feature(new Point(fromLonLat(arr[i])));
+  /**
+   * 根据坐标范围查询医院数据
+   * @param params
+   */
+  handleFetch = (params) => {
+    const { dispatch } = this.props;
+    dispatch({
+      type: 'hospital/fetch',
+      payload: {
+        ...params,
+      },
+    });
+  };
+
+  /**
+   * 根据查询到的医院数据添加地图标记
+   * @param list
+   */
+  handleMarker = (list) => {
+    list.forEach((item, i) => {
+      const iconFeature = new Feature({
+        geometry: new Point(fromLonLat(item.lngLat)),
+        id: `hospital${item.id}`,
+      });
 
       const iconStyle = new Style({
         image: new Icon({
@@ -204,9 +189,13 @@ class Hospital extends Component {
       });
       iconFeature.setStyle(iconStyle);
       vectorSource.addFeature(iconFeature);
-    }
+    });
   };
 
+  /**
+   * 切换绘制图形，并删除旧添加新交互功能。
+   * @param value
+   */
   handleType = (value) => {
     this.setState(
       {
@@ -220,6 +209,9 @@ class Hospital extends Component {
     );
   };
 
+  /**
+   * 地图交互功能实现及监听定义，带吸符功能。
+   */
   addInteractions = () => {
     const { type } = this.state;
     this.draw = new Draw({
@@ -227,7 +219,13 @@ class Hospital extends Component {
       type,
     });
     this.draw.on('drawend', (e) => {
-      console.log(e);
+      const center = e.feature.getGeometry().getCenter();
+      const radius = e.feature.getGeometry().getRadius();
+      this.handleFetch({
+        type,
+        center: toLonLat(center),
+        radius,
+      });
     });
     this.map.addInteraction(this.draw);
     this.snap = new Snap({ source: vectorSource });
@@ -269,6 +267,26 @@ class Hospital extends Component {
       this.map.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
   };
+
+  render() {
+    const { type } = this.state;
+    return (
+      <div style={{ position: 'relative' }}>
+        <div ref={this.olRef} style={{ height: '100vh' }}>
+          <div ref={this.popupRef} />
+        </div>
+        <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
+          <Select defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
+            <Option value="Circle">圆形</Option>
+            <Option value="Polygon">多边形</Option>
+          </Select>
+        </div>
+      </div>
+    );
+  }
 }
 
-export default Hospital;
+export default connect(({ hospital: { list }, loading }) => ({
+  list,
+  loading: loading.effects['hospital/fetch'],
+}))(Hospital);
