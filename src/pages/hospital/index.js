@@ -44,12 +44,14 @@ const vectorLayer = new VectorLayer({
 });
 vectorLayer.set('name', 'vectorLayer');
 
-const iconVectorSource = new VectorSource({
+// 矢量图层（标记）
+const markerVectorSource = new VectorSource({
   wrapX: true,
 });
-const iconVectorLayer = new VectorLayer({
-  source: iconVectorSource,
+const markerVectorLayer = new VectorLayer({
+  source: markerVectorSource,
 });
+markerVectorLayer.set('name', 'markerVectorLayer');
 
 // 聚合
 const clusterSource = new Cluster({
@@ -101,16 +103,20 @@ class Hospital extends Component {
     this.modify = undefined;
     this.draw = undefined;
     this.snap = undefined;
+    this.beforeFeatureList = [];
+    this.beforeCenter = [];
+    this.beforeRadius = 0;
   }
 
   componentDidMount() {
+    this.handleLocation();
     // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
-      layers: [rasterLayer, vectorLayer, iconVectorLayer],
+      layers: [rasterLayer, vectorLayer, markerVectorLayer],
       view: new View({
         // projection: 'EPSG:4326',
-        center: fromLonLat([116.397507, 39.908708]),
+        center: fromLonLat([116.397507, 39.908708]), // 默认北京
         zoom: 13,
         minZoom: 0,
         maxZoom: 18,
@@ -136,6 +142,50 @@ class Hospital extends Component {
     this.addInteractions();
     // 添加修改功能
     this.modify = new Modify({ source: vectorSource });
+    this.modify.on('modifystart', ({ features }) => {
+      // eslint-disable-next-line no-underscore-dangle
+      const feature = features.array_[0];
+      const geometry = feature.getGeometry();
+      this.beforeCenter = geometry.getCenter();
+      this.beforeRadius = geometry.getRadius();
+      this.beforeFeatureList = markerVectorSource
+        .getFeatures()
+        .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()));
+    });
+    this.modify.on('modifyend', ({ features }) => {
+      // eslint-disable-next-line no-underscore-dangle
+      const feature = features.array_[0];
+      const geometry = feature.getGeometry();
+      if (geometry.getType() === 'Circle') {
+        const center = geometry.getCenter();
+        const radius = geometry.getRadius();
+        // drag
+        if (this.beforeCenter.toString() !== center.toString()) {
+          this.beforeFeatureList.forEach((item) => {
+            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+              markerVectorSource.removeFeature(item);
+            }
+          });
+          this.handleFetch({
+            type: 'Circle',
+            center: toLonLat(center),
+            radius,
+          });
+        } else if (radius > this.beforeRadius) {
+          this.handleFetch({
+            type: 'Circle',
+            center: toLonLat(center),
+            radius,
+          });
+        } else {
+          this.beforeFeatureList.forEach((item) => {
+            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+              markerVectorSource.removeFeature(item);
+            }
+          });
+        }
+      }
+    });
     this.map.addInteraction(this.modify);
   }
 
@@ -145,12 +195,24 @@ class Hospital extends Component {
 
   componentDidUpdate() {
     const { list } = this.props;
-    this.handleMarker(list);
+    this.addMarker(list);
   }
 
   componentWillUnmount() {
     this.map.setTarget(undefined);
   }
+
+  /**
+   * 获取用户当前位置
+   */
+  handleLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { longitude, latitude } = position.coords;
+        this.map.getView().animate({ center: fromLonLat([longitude, latitude]) });
+      });
+    }
+  };
 
   /**
    * 根据坐标范围查询医院数据
@@ -170,11 +232,10 @@ class Hospital extends Component {
    * 根据查询到的医院数据添加地图标记
    * @param list
    */
-  handleMarker = (list) => {
+  addMarker = (list) => {
     list.forEach((item, i) => {
       const iconFeature = new Feature({
         geometry: new Point(fromLonLat(item.lngLat)),
-        id: `hospital${item.id}`,
       });
 
       const iconStyle = new Style({
@@ -195,7 +256,7 @@ class Hospital extends Component {
         }),
       });
       iconFeature.setStyle(iconStyle);
-      iconVectorSource.addFeature(iconFeature);
+      markerVectorSource.addFeature(iconFeature);
     });
   };
 
@@ -225,13 +286,19 @@ class Hospital extends Component {
       source: vectorSource,
       type,
     });
-    this.draw.on('drawend', (e) => {
-      const center = e.feature.getGeometry().getCenter();
-      const radius = e.feature.getGeometry().getRadius();
+    this.draw.on('drawend', ({ feature }) => {
+      const params = {};
+      const geometry = feature.getGeometry();
+      if (geometry.getType() === 'Circle') {
+        const center = feature.getGeometry().getCenter();
+        const radius = feature.getGeometry().getRadius();
+        params.center = toLonLat(center);
+        params.radius = radius;
+      }
+      // 其它图形……
       this.handleFetch({
         type,
-        center: toLonLat(center),
-        radius,
+        ...params,
       });
     });
     this.map.addInteraction(this.draw);
@@ -285,7 +352,9 @@ class Hospital extends Component {
         <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
           <Select defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
             <Option value="Circle">圆形</Option>
-            <Option value="Polygon">多边形</Option>
+            <Option value="Polygon" disabled>
+              多边形
+            </Option>
           </Select>
         </div>
       </div>
