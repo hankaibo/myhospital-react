@@ -1,20 +1,21 @@
 import React, { Component, createRef } from 'react';
-import { Select } from 'antd';
+import { Select as AntSelect } from 'antd';
 import { connect } from 'umi';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import { XYZ, Vector as VectorSource, Cluster } from 'ol/source';
 import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
 import { ZoomToExtent, defaults as defaultControls } from 'ol/control';
-import { Draw, Modify, Snap } from 'ol/interaction';
+import { Draw, Modify, Snap, Select } from 'ol/interaction';
 import Feature from 'ol/Feature';
 import Overlay from 'ol/Overlay';
 import { Fill, Stroke, Style, Icon, Circle as CircleStyle } from 'ol/style';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import Point from 'ol/geom/Point';
+import { click } from 'ol/events/condition';
 import 'ol/ol.css';
 
-const { Option } = Select;
+const { Option } = AntSelect;
 
 // 瓦片图层
 const rasterLayer = new TileLayer({
@@ -99,17 +100,19 @@ class Hospital extends Component {
     };
     this.olRef = createRef();
     this.popupRef = createRef();
+
     this.map = undefined;
-    this.modify = undefined;
     this.draw = undefined;
+    this.select = null;
+    this.modify = undefined;
     this.snap = undefined;
+
     this.beforeFeatureList = [];
     this.beforeCenter = [];
     this.beforeRadius = 0;
   }
 
   componentDidMount() {
-    this.handleLocation();
     // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
@@ -129,64 +132,14 @@ class Hospital extends Component {
       ]),
     });
 
-    this.popup = new Overlay({
-      element: this.popupRef.current,
-      positioning: 'bottom-center',
-      stopEvent: true,
-      offset: [0, 0],
-    });
-
-    this.map.addOverlay(this.popup);
-
     // 添加交互功能
     this.addInteractions();
-    // 添加修改功能
-    this.modify = new Modify({ source: vectorSource });
-    this.modify.on('modifystart', ({ features }) => {
-      // eslint-disable-next-line no-underscore-dangle
-      const feature = features.array_[0];
-      const geometry = feature.getGeometry();
-      this.beforeCenter = geometry.getCenter();
-      this.beforeRadius = geometry.getRadius();
-      this.beforeFeatureList = markerVectorSource
-        .getFeatures()
-        .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()));
-    });
-    this.modify.on('modifyend', ({ features }) => {
-      // eslint-disable-next-line no-underscore-dangle
-      const feature = features.array_[0];
-      const geometry = feature.getGeometry();
-      if (geometry.getType() === 'Circle') {
-        const center = geometry.getCenter();
-        const radius = geometry.getRadius();
-        // drag
-        if (this.beforeCenter.toString() !== center.toString()) {
-          this.beforeFeatureList.forEach((item) => {
-            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
-              markerVectorSource.removeFeature(item);
-            }
-          });
-          this.handleFetch({
-            type: 'Circle',
-            center: toLonLat(center),
-            radius,
-          });
-        } else if (radius > this.beforeRadius) {
-          this.handleFetch({
-            type: 'Circle',
-            center: toLonLat(center),
-            radius,
-          });
-        } else {
-          this.beforeFeatureList.forEach((item) => {
-            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
-              markerVectorSource.removeFeature(item);
-            }
-          });
-        }
-      }
-    });
-    this.map.addInteraction(this.modify);
+
+    // 添加地图事件
+    this.addEvent();
+
+    // 重定位地图
+    this.handleLocation();
   }
 
   shouldComponentUpdate(nextProps) {
@@ -201,18 +154,6 @@ class Hospital extends Component {
   componentWillUnmount() {
     this.map.setTarget(undefined);
   }
-
-  /**
-   * 获取用户当前位置
-   */
-  handleLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { longitude, latitude } = position.coords;
-        this.map.getView().animate({ center: fromLonLat([longitude, latitude]) });
-      });
-    }
-  };
 
   /**
    * 根据坐标范围查询医院数据
@@ -272,62 +213,139 @@ class Hospital extends Component {
       () => {
         this.map.removeInteraction(this.draw);
         this.map.removeInteraction(this.snap);
+        this.map.removeInteraction(this.modify);
+        this.map.removeInteraction(this.select);
         this.addInteractions();
       },
     );
   };
 
   /**
-   * 地图交互功能实现及监听定义，带吸符功能。
+   * 添加地图交互功能
    */
   addInteractions = () => {
+    this.handleDraw();
+    this.handleSnap();
+    this.handleModify();
+    this.handleSelect();
+  };
+
+  handleDraw = () => {
     const { type } = this.state;
     this.draw = new Draw({
       source: vectorSource,
       type,
     });
     this.draw.on('drawend', ({ feature }) => {
-      const params = {};
       const geometry = feature.getGeometry();
       if (geometry.getType() === 'Circle') {
         const center = feature.getGeometry().getCenter();
         const radius = feature.getGeometry().getRadius();
-        params.center = toLonLat(center);
-        params.radius = radius;
+        this.handleFetch({
+          type,
+          center: toLonLat(center),
+          radius,
+        });
       }
-      // 其它图形……
-      this.handleFetch({
-        type,
-        ...params,
-      });
     });
     this.map.addInteraction(this.draw);
+  };
+
+  handleSnap = () => {
     this.snap = new Snap({ source: vectorSource });
     this.map.addInteraction(this.snap);
   };
 
-  foo = () => {
-    const that = this;
-    this.map.on('click', (evt) => {
-      const selectedFeature = that.map.forEachFeatureAtPixel(
-        evt.pixel,
-        (feature) => {
-          return feature;
-        },
-        {
-          layerFilter: (layer) => {
-            return layer.get('name') === 'vectorLayer';
-          },
-        },
-      );
-      if (selectedFeature) {
-        const coordinates = selectedFeature.getGeometry().getCoordinates();
-        that.popup.setPosition(fromLonLat(coordinates));
-        console.log('show');
-      } else {
-        console.log('hidden');
+  handleModify = () => {
+    this.modify = new Modify({ source: vectorSource });
+    this.modify.on('modifystart', ({ features }) => {
+      // eslint-disable-next-line no-underscore-dangle
+      const feature = features.array_[0];
+      const geometry = feature.getGeometry();
+      if (geometry.getType() === 'Circle') {
+        this.beforeCenter = geometry.getCenter();
+        this.beforeRadius = geometry.getRadius();
+        this.beforeFeatureList = markerVectorSource
+          .getFeatures()
+          .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()));
       }
     });
+    this.modify.on('modifyend', ({ features }) => {
+      // eslint-disable-next-line no-underscore-dangle
+      const feature = features.array_[0];
+      const geometry = feature.getGeometry();
+      if (geometry.getType() === 'Circle') {
+        const center = geometry.getCenter();
+        const radius = geometry.getRadius();
+        // drag
+        if (this.beforeCenter.toString() !== center.toString()) {
+          this.beforeFeatureList.forEach((item) => {
+            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+              markerVectorSource.removeFeature(item);
+            }
+          });
+          this.handleFetch({
+            type: 'Circle',
+            center: toLonLat(center),
+            radius,
+          });
+        } else if (radius > this.beforeRadius) {
+          this.handleFetch({
+            type: 'Circle',
+            center: toLonLat(center),
+            radius,
+          });
+        } else {
+          this.beforeFeatureList.forEach((item) => {
+            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+              markerVectorSource.removeFeature(item);
+            }
+          });
+        }
+      }
+    });
+    this.map.addInteraction(this.modify);
+  };
+
+  handleSelect = () => {
+    if (this.select !== null) {
+      this.map.removeInteraction(this.select);
+    }
+    this.select = new Select({
+      condition: click,
+    });
+    if (this.select !== null) {
+      this.map.addInteraction(this.select);
+      this.select.on('select', (e) => {
+        console.log(e);
+      });
+    }
+  };
+
+  /**
+   * 添加地图事件
+   */
+  addEvent = () => {
+    // this.map.on('click', (evt) => {
+    //   const selectedFeature = that.map.forEachFeatureAtPixel(
+    //     evt.pixel,
+    //     (feature) => {
+    //       return feature;
+    //     },
+    //     {
+    //       layerFilter: (layer) => {
+    //         return layer.get('name') === 'vectorLayer';
+    //       },
+    //     },
+    //   );
+    //   if (selectedFeature) {
+    //     const coordinates = selectedFeature.getGeometry().getCoordinates();
+    //     that.popup.setPosition(fromLonLat(coordinates));
+    //     console.log('show');
+    //   } else {
+    //     console.log('hidden');
+    //   }
+    // });
 
     this.map.on('pointermove', (e) => {
       if (e.dragging) {
@@ -338,8 +356,35 @@ class Hospital extends Component {
           return layer.get('name') === 'vectorLayer';
         },
       });
+      this.draw.setActive(!hit);
       this.map.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
+  };
+
+  /**
+   * 定位地图中心到用户当前位置
+   */
+  handleLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { longitude, latitude } = position.coords;
+        this.map.getView().animate({ center: fromLonLat([longitude, latitude]) });
+      });
+    }
+  };
+
+  /**
+   * 弹出层
+   */
+  handleOverlay = () => {
+    this.popup = new Overlay({
+      element: this.popupRef.current,
+      positioning: 'bottom-center',
+      stopEvent: true,
+      offset: [0, 0],
+    });
+
+    this.map.addOverlay(this.popup);
   };
 
   render() {
@@ -350,12 +395,12 @@ class Hospital extends Component {
           <div ref={this.popupRef} />
         </div>
         <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
-          <Select defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
+          <AntSelect defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
             <Option value="Circle">圆形</Option>
             <Option value="Polygon" disabled>
               多边形
             </Option>
-          </Select>
+          </AntSelect>
         </div>
       </div>
     );
