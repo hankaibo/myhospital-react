@@ -107,6 +107,12 @@ class Hospital extends Component {
     this.modify = undefined;
     this.snap = undefined;
 
+    // 当区域A∩B有共同的marker时，
+    // 删除B区域时，因为marker还在A区域中，故marker不删除；
+    // 当删除A区域时，marker不在任何区域中，此时删除。
+    // 第一次用ol，没找到相关api，因为情况简单，使用了”引用计数“这种最简单实现方法。
+    // 引用计数原理请参考垃圾回收机制。
+    this.allFeature = {};
     this.beforeFeatureList = [];
     this.beforeCenter = [];
     this.beforeRadius = 0;
@@ -174,9 +180,21 @@ class Hospital extends Component {
    * @param list
    */
   addMarker = (list) => {
-    list.forEach((item, i) => {
+    const newList = [];
+    list.forEach((item) => {
+      const value = this.allFeature[item.name];
+      if (!value) {
+        this.allFeature[item.name] = 1;
+        newList.push(item);
+      } else {
+        this.allFeature[item.name] = value + 1;
+      }
+    });
+    newList.forEach((item, i) => {
       const iconFeature = new Feature({
         geometry: new Point(fromLonLat(item.lngLat)),
+        id: item.id,
+        name: item.name,
       });
 
       const iconStyle = new Style({
@@ -298,7 +316,14 @@ class Hospital extends Component {
         } else {
           this.beforeFeatureList.forEach((item) => {
             if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
-              markerVectorSource.removeFeature(item);
+              const name = item.get('name');
+              const value = this.allFeature[name];
+              if (value > 1) {
+                this.allFeature[name] = value - 1;
+              } else {
+                delete this.allFeature[name];
+                markerVectorSource.removeFeature(item);
+              }
             }
           });
         }
