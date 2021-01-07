@@ -14,6 +14,7 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import Point from 'ol/geom/Point';
 import { click } from 'ol/events/condition';
 import 'ol/ol.css';
+import styles from './index.less';
 
 const { Option } = AntSelect;
 
@@ -131,6 +132,16 @@ class Hospital extends Component {
         maxZoom: 18,
         constrainResolution: true,
       }),
+      overlays: [
+        new Overlay({
+          id: 'popup',
+          element: this.popupRef.current,
+          autoPan: true,
+          autoPanAnimation: {
+            duration: 250,
+          },
+        }),
+      ],
       controls: defaultControls().extend([
         new ZoomToExtent({
           extent: [12879665.084781753, 4779131.18122614, 13068908.219130317, 5101248.438166104],
@@ -180,6 +191,9 @@ class Hospital extends Component {
    * @param list
    */
   addMarker = (list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
     const newList = [];
     list.forEach((item) => {
       const value = this.allFeature[item.name];
@@ -338,11 +352,13 @@ class Hospital extends Component {
     }
     this.select = new Select({
       condition: click,
+      layers: [vectorLayer],
     });
     if (this.select !== null) {
       this.map.addInteraction(this.select);
       this.select.on('select', (e) => {
         console.log(e);
+        return false;
       });
     }
   };
@@ -351,35 +367,23 @@ class Hospital extends Component {
    * 添加地图事件
    */
   addEvent = () => {
-    // this.map.on('click', (evt) => {
-    //   const selectedFeature = that.map.forEachFeatureAtPixel(
-    //     evt.pixel,
-    //     (feature) => {
-    //       return feature;
-    //     },
-    //     {
-    //       layerFilter: (layer) => {
-    //         return layer.get('name') === 'vectorLayer';
-    //       },
-    //     },
-    //   );
-    //   if (selectedFeature) {
-    //     const coordinates = selectedFeature.getGeometry().getCoordinates();
-    //     that.popup.setPosition(fromLonLat(coordinates));
-    //     console.log('show');
-    //   } else {
-    //     console.log('hidden');
-    //   }
-    // });
+    this.map.on('singleclick', (evt) => {
+      const selectedFeature = this.map.forEachFeatureAtPixel(evt.pixel, (feature) => feature, {
+        layerFilter: (layer) => layer.get('name') === 'markerVectorLayer',
+      });
+      if (selectedFeature) {
+        console.log(222);
+        const coordinates = selectedFeature.getGeometry().getCoordinates();
+        this.map.getOverlayById('popup').setPosition(coordinates);
+      }
+    });
 
     this.map.on('pointermove', (e) => {
       if (e.dragging) {
         return;
       }
       const hit = this.map.hasFeatureAtPixel(e.pixel, {
-        layerFilter: (layer) => {
-          return layer.get('name') === 'vectorLayer';
-        },
+        layerFilter: (layer) => layer.get('name') === 'vectorLayer',
       });
       this.draw.setActive(!hit);
       this.map.getTargetElement().style.cursor = hit ? 'pointer' : '';
@@ -401,15 +405,9 @@ class Hospital extends Component {
   /**
    * 弹出层
    */
-  handleOverlay = () => {
-    this.popup = new Overlay({
-      element: this.popupRef.current,
-      positioning: 'bottom-center',
-      stopEvent: true,
-      offset: [0, 0],
-    });
-
-    this.map.addOverlay(this.popup);
+  handleClose = () => {
+    this.map.getOverlayById('popup').setPosition(undefined);
+    return false;
   };
 
   render() {
@@ -417,7 +415,12 @@ class Hospital extends Component {
     return (
       <div style={{ position: 'relative' }}>
         <div ref={this.olRef} style={{ height: '100vh' }}>
-          <div ref={this.popupRef} />
+          <div ref={this.popupRef} className={styles.olPopup}>
+            <a href="#" className={styles.olPopupCloser} onClick={this.handleClose}>
+              ✖
+            </a>
+            <div id="popup-content">test</div>
+          </div>
         </div>
         <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
           <AntSelect defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>

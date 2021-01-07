@@ -1,0 +1,43 @@
+.olPopup {
+  position: absolute;
+  bottom: 12px;
+  left: -50px;
+  min-width: 280px;
+  padding: 15px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+
+  &::after,
+  &::before {
+    position: absolute;
+    top: 100%;
+    width: 0;
+    height: 0;
+    border: solid transparent;
+    content: ' ';
+    pointer-events: none;
+  }
+
+  &::after {
+    left: 48px;
+    margin-left: -10px;
+    border-width: 10px;
+    border-top-color: white;
+  }
+
+  &::before {
+    left: 48px;
+    margin-left: -11px;
+    border-width: 11px;
+    border-top-color: #ccc;
+  }
+
+  .olPopupCloser {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    text-decoration: none;
+  }
+}
