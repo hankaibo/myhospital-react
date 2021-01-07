@@ -357,8 +357,11 @@ class Hospital extends Component {
     if (this.select !== null) {
       this.map.addInteraction(this.select);
       this.select.on('select', (e) => {
-        console.log(e);
-        return false;
+        console.log(
+          `${e.target.getFeatures().getLength()} selected features (last operation selected ${
+            e.selected.length
+          } and deselected ${e.deselected.length} features)`,
+        );
       });
     }
   };
@@ -367,12 +370,12 @@ class Hospital extends Component {
    * 添加地图事件
    */
   addEvent = () => {
-    this.map.on('singleclick', (evt) => {
+    this.map.on('click', (evt) => {
       const selectedFeature = this.map.forEachFeatureAtPixel(evt.pixel, (feature) => feature, {
         layerFilter: (layer) => layer.get('name') === 'markerVectorLayer',
       });
       if (selectedFeature) {
-        console.log(222);
+        evt.stopPropagation();
         const coordinates = selectedFeature.getGeometry().getCoordinates();
         this.map.getOverlayById('popup').setPosition(coordinates);
       }
