@@ -2,7 +2,7 @@
   "name": "myhospital",
   "version": "1.0.0",
   "private": true,
-  "description": "医保定点医院助手",
+  "description": "医保定点医院选择助手",
   "scripts": {
     "analyze": "cross-env ANALYZE=1 umi build",
     "build": "umi build",
