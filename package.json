@@ -50,6 +50,7 @@
     "lodash.throttle": "^4.1.1",
     "moment": "^2.29.1",
     "ol": "^6.5.0",
+    "ol-contextmenu": "^4.1.0",
     "path-to-regexp": "^6.2.0",
     "qs": "^6.9.4",
     "react": "^16.14.0",

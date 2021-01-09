@@ -13,7 +13,9 @@ import { Fill, Stroke, Style, Icon, Circle as CircleStyle } from 'ol/style';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import Point from 'ol/geom/Point';
 import { click } from 'ol/events/condition';
+import ContextMenu from 'ol-contextmenu';
 import 'ol/ol.css';
+import 'ol-contextmenu/dist/ol-contextmenu.css';
 import styles from './index.less';
 
 const { Option } = AntSelect;
@@ -114,7 +116,7 @@ class Hospital extends Component {
     // 第一次用ol，没找到相关api，因为情况简单，使用了”引用计数“这种最简单实现方法。
     // 引用计数原理请参考垃圾回收机制。
     this.allFeature = {};
-    this.beforeFeatureList = [];
+    this.beforeMarkList = [];
     this.beforeCenter = [];
     this.beforeRadius = 0;
   }
@@ -142,7 +144,10 @@ class Hospital extends Component {
           },
         }),
       ],
-      controls: defaultControls().extend([
+      controls: defaultControls({
+        rotate: false,
+        attribution: false,
+      }).extend([
         new ZoomToExtent({
           extent: [12879665.084781753, 4779131.18122614, 13068908.219130317, 5101248.438166104],
         }),
@@ -157,6 +162,9 @@ class Hospital extends Component {
 
     // 重定位地图
     this.handleLocation();
+
+    // 自定义右键
+    this.handleContextMenu();
   }
 
   shouldComponentUpdate(nextProps) {
@@ -195,15 +203,17 @@ class Hospital extends Component {
       return;
     }
     const newList = [];
-    list.forEach((item) => {
-      const value = this.allFeature[item.name];
-      if (!value) {
-        this.allFeature[item.name] = 1;
-        newList.push(item);
-      } else {
-        this.allFeature[item.name] = value + 1;
-      }
-    });
+    list
+      .filter((item) => !this.beforeMarkList.includes(item))
+      .forEach((item) => {
+        const value = this.allFeature[item.name];
+        if (!value) {
+          this.allFeature[item.name] = 1;
+          newList.push(item);
+        } else {
+          this.allFeature[item.name] = value + 1;
+        }
+      });
     newList.forEach((item, i) => {
       const iconFeature = new Feature({
         geometry: new Point(fromLonLat(item.lngLat)),
@@ -231,6 +241,35 @@ class Hospital extends Component {
       iconFeature.setStyle(iconStyle);
       markerVectorSource.addFeature(iconFeature);
     });
+    this.beforeMarkList = [];
+  };
+
+  /**
+   * 删除地图标记
+   */
+  removeMarker = (feature) => {
+    const name = feature.get('name');
+    const value = this.allFeature[name];
+    if (value === 1) {
+      this.allFeature[name] = 0;
+      markerVectorSource.removeFeature(feature);
+    } else {
+      this.allFeature[name] = value - 1;
+    }
+  };
+
+  /**
+   * 删除选中的图形区域
+   */
+  deleteDraw = () => {
+    const geometry = this.deleteFeature.getGeometry();
+    markerVectorSource
+      .getFeatures()
+      .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()))
+      .forEach((item) => {
+        this.removeMarker(item);
+      });
+    vectorSource.removeFeature(this.deleteFeature);
   };
 
   /**
@@ -294,53 +333,26 @@ class Hospital extends Component {
       // eslint-disable-next-line no-underscore-dangle
       const feature = features.array_[0];
       const geometry = feature.getGeometry();
-      if (geometry.getType() === 'Circle') {
-        this.beforeCenter = geometry.getCenter();
-        this.beforeRadius = geometry.getRadius();
-        this.beforeFeatureList = markerVectorSource
-          .getFeatures()
-          .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()));
+      const type = geometry.getType();
+      switch (type) {
+        case 'Circle':
+          this.handleCircleBefore(feature);
+          break;
+        default:
+          break;
       }
     });
     this.modify.on('modifyend', ({ features }) => {
       // eslint-disable-next-line no-underscore-dangle
       const feature = features.array_[0];
       const geometry = feature.getGeometry();
-      if (geometry.getType() === 'Circle') {
-        const center = geometry.getCenter();
-        const radius = geometry.getRadius();
-        // drag
-        if (this.beforeCenter.toString() !== center.toString()) {
-          this.beforeFeatureList.forEach((item) => {
-            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
-              markerVectorSource.removeFeature(item);
-            }
-          });
-          this.handleFetch({
-            type: 'Circle',
-            center: toLonLat(center),
-            radius,
-          });
-        } else if (radius > this.beforeRadius) {
-          this.handleFetch({
-            type: 'Circle',
-            center: toLonLat(center),
-            radius,
-          });
-        } else {
-          this.beforeFeatureList.forEach((item) => {
-            if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
-              const name = item.get('name');
-              const value = this.allFeature[name];
-              if (value > 1) {
-                this.allFeature[name] = value - 1;
-              } else {
-                delete this.allFeature[name];
-                markerVectorSource.removeFeature(item);
-              }
-            }
-          });
-        }
+      const type = geometry.getType();
+      switch (type) {
+        case 'Circle':
+          this.handleCircleAfter(feature);
+          break;
+        default:
+          break;
       }
     });
     this.map.addInteraction(this.modify);
@@ -357,11 +369,52 @@ class Hospital extends Component {
     if (this.select !== null) {
       this.map.addInteraction(this.select);
       this.select.on('select', (e) => {
+        // eslint-disable-next-line no-console
         console.log(
           `${e.target.getFeatures().getLength()} selected features (last operation selected ${
             e.selected.length
           } and deselected ${e.deselected.length} features)`,
         );
+      });
+    }
+  };
+
+  handleCircleBefore = (feature) => {
+    const geometry = feature.getGeometry();
+    this.beforeCenter = geometry.getCenter();
+    this.beforeRadius = geometry.getRadius();
+    this.beforeMarkList = markerVectorSource
+      .getFeatures()
+      .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()));
+  };
+
+  handleCircleAfter = (feature) => {
+    const geometry = feature.getGeometry();
+    const center = geometry.getCenter();
+    const radius = geometry.getRadius();
+    // drag
+    if (this.beforeCenter.toString() !== center.toString()) {
+      this.beforeMarkList.forEach((item) => {
+        if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+          this.removeMarker(item);
+        }
+      });
+      this.handleFetch({
+        type: 'Circle',
+        center: toLonLat(center),
+        radius,
+      });
+    } else if (radius > this.beforeRadius) {
+      this.handleFetch({
+        type: 'Circle',
+        center: toLonLat(center),
+        radius,
+      });
+    } else {
+      this.beforeMarkList.forEach((item) => {
+        if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+          this.removeMarker(item);
+        }
       });
     }
   };
@@ -403,6 +456,35 @@ class Hospital extends Component {
         this.map.getView().animate({ center: fromLonLat([longitude, latitude]) });
       });
     }
+  };
+
+  /**
+   * 右键菜单
+   */
+  handleContextMenu = () => {
+    const contextmenu = new ContextMenu({
+      width: 170,
+      defaultItems: false,
+      items: [
+        {
+          text: '删除',
+          classname: 'some-style-class',
+          callback: this.deleteDraw,
+        },
+      ],
+    });
+    contextmenu.on('beforeopen', (evt) => {
+      const selectedFeature = this.map.forEachFeatureAtPixel(evt.pixel, (feature) => feature, {
+        layerFilter: (layer) => layer.get('name') === 'vectorLayer',
+      });
+      if (selectedFeature) {
+        contextmenu.enable();
+        this.deleteFeature = selectedFeature;
+      } else {
+        contextmenu.disable();
+      }
+    });
+    this.map.addControl(contextmenu);
   };
 
   /**
