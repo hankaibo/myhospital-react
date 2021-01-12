@@ -1,6 +1,7 @@
 export default {
   'menu.home': '首页',
   'menu.login': '登录',
+  'menu.hospital': '医保定点医院',
   // account
   'menu.account': '个人页',
   'menu.account.center': '个人中心',

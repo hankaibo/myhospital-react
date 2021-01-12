@@ -15,8 +15,8 @@ export default [
         ],
       },
       {
-        path: '/hospital',
-        component: './hospital',
+        path: '/hospital/map',
+        component: './hospital/map',
       },
       {
         path: '/',
@@ -39,6 +39,13 @@ export default [
                 icon: 'home',
                 component: './home',
               },
+              // hospital
+              {
+                path: '/hospital',
+                name: 'hospital',
+                icon: 'medicine-box',
+                component: './hospital',
+              },
               // account
               {
                 path: '/account',
@@ -48,13 +55,11 @@ export default [
                   {
                     path: '/account/center',
                     name: 'center',
-                    icon: 'smile',
                     component: './account/center',
                   },
                   {
                     path: '/account/settings',
                     name: 'settings',
-                    icon: 'smile',
                     component: './account/settings',
                   },
                 ],
@@ -68,42 +73,36 @@ export default [
                   {
                     path: '/system/departments',
                     name: 'department',
-                    icon: 'apartment',
                     component: './system/department',
                     authority: ['system:department:tree'],
                   },
                   {
                     path: '/system/users',
                     name: 'user',
-                    icon: 'Team',
                     component: './system/user',
                     authority: ['system:user:list'],
                   },
                   {
                     path: '/system/roles',
                     name: 'role',
-                    icon: 'usergroupadd',
                     component: './system/role',
                     authority: ['system:role:tree'],
                   },
                   {
                     path: '/system/menus',
                     name: 'menu',
-                    icon: 'menu',
                     component: './system/menu',
                     authority: ['system:menu:tree'],
                   },
                   {
                     path: '/system/apis',
                     name: 'api',
-                    icon: 'api',
                     component: './system/api',
                     authority: ['system:api:children'],
                   },
                   {
                     path: '/system/dictionaries',
                     name: 'dictionary',
-                    icon: 'book',
                     authority: ['system:dictionary:list'],
                     routes: [
                       {
