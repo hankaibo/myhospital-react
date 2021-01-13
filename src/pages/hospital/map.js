@@ -187,6 +187,13 @@ class Hospital extends Component {
         geometry: new Point(fromLonLat([item.lng, item.lat])),
         id: item.id,
         name: item.name,
+        code: item.code,
+        type: item.type,
+        district: item.district,
+        lvl: item.lvl,
+        zipCode: item.zipCode,
+        address: item.address,
+        introduction: item.introduction,
       });
 
       const iconStyle = new Style({
