@@ -1,5 +1,5 @@
 import React, { Component, createRef } from 'react';
-import { Select as AntSelect } from 'antd';
+import { Select as AntSelect, Descriptions, Typography } from 'antd';
 import { connect } from 'umi';
 import Map from 'ol/Map';
 import View from 'ol/View';
@@ -19,6 +19,7 @@ import 'ol-contextmenu/dist/ol-contextmenu.css';
 import styles from './index.less';
 
 const { Option } = AntSelect;
+const { Link, Text } = Typography;
 
 // 瓦片图层
 const rasterLayer = new TileLayer({
@@ -68,9 +69,11 @@ class Hospital extends Component {
     super(props);
     this.state = {
       type: 'Circle',
+      hospital: {},
     };
     this.olRef = createRef();
     this.popupRef = createRef();
+    this.foo = createRef();
 
     this.map = undefined;
     this.draw = undefined;
@@ -78,15 +81,12 @@ class Hospital extends Component {
     this.modify = undefined;
     this.snap = undefined;
 
-    // 当区域A∩B有共同的marker时，
-    // 删除B区域时，因为marker还在A区域中，故marker不删除；
-    // 当删除A区域时，marker不在任何区域中，此时删除。
-    // 第一次用ol，没找到相关api，因为情况简单，使用了”引用计数“这种最简单实现方法。
-    // 引用计数原理请参考垃圾回收机制。
-    this.allFeature = {};
+    this.allFeature = [];
     this.beforeMarkList = [];
     this.beforeCenter = [];
     this.beforeRadius = 0;
+
+    this.selectHospital = {};
   }
 
   componentDidMount() {
@@ -135,8 +135,8 @@ class Hospital extends Component {
     this.handleContextMenu();
   }
 
-  shouldComponentUpdate(nextProps) {
-    return this.props.list !== nextProps.list;
+  shouldComponentUpdate(nextProps, nextStatue) {
+    return this.props.list !== nextProps.list || this.state.hospital !== nextStatue.hospital;
   }
 
   componentDidUpdate() {
@@ -172,15 +172,11 @@ class Hospital extends Component {
     }
     const newList = [];
     list
-      .filter((item) => !this.beforeMarkList.includes(item))
+      // 过滤已绘制的
+      .filter((item) => !this.allFeature.includes(item.id))
       .forEach((item) => {
-        const value = this.allFeature[item.name];
-        if (!value) {
-          this.allFeature[item.name] = 1;
-          newList.push(item);
-        } else {
-          this.allFeature[item.name] = value + 1;
-        }
+        this.allFeature.push(item.id);
+        newList.push(item);
       });
     newList.forEach((item, i) => {
       const iconFeature = new Feature({
@@ -196,20 +192,50 @@ class Hospital extends Component {
         introduction: item.introduction,
       });
 
+      // padding-top: 8
+      // padding-left: 19
+      // padding-right: 45
+      // padding-bottom:24
+      // 1-10蓝标: [19+88*i,8+88*1]
+      // 11-20蓝标：[19+88*i,8+88*2]
+      // 1-10红标: [19+88*i,8+88*3]
+      // 11-20红标：[19+88*i,8+88*4]
+      // 1-10黄标: [19+88*i,8+88*5]
+      const handleOffset = (index, tag) => {
+        let row = 0;
+        let idx = index;
+        switch (tag) {
+          case 'blue':
+            if (index > 9) {
+              row = 2;
+              idx = index - 10;
+            } else {
+              row = 1;
+            }
+            break;
+          case 'red':
+            if (index > 9) {
+              row = 4;
+              idx = index - 10;
+            } else {
+              row = 3;
+            }
+            break;
+          case 'yellow':
+            row = 5;
+            break;
+          default:
+            idx = 8;
+            row = 0;
+        }
+        return [19 + 88 * idx, 8 + 88 * row];
+      };
+
       const iconStyle = new Style({
         image: new Icon({
           anchor: [0.5, 0.96],
           size: [44, 64],
-          // padding-top: 8
-          // padding-left: 19
-          // padding-right: 45
-          // padding-bottom:24
-          offset: [19 + 88 * i, 8 + 88 * 3],
-          // 1-10蓝标: [19+88*i,8+88*1]
-          // 11-20蓝标：[19+88*i,8+88*2]
-          // 1-10红标: [19+88*i,8+88*3]
-          // 11-20红标：[19+88*i,8+88*4]
-          // 1-10黄标: [19+88*i,8+88*5]
+          offset: handleOffset(i, 'red'),
           src: 'https://www.amap.com/assets/img/poi-marker.png',
         }),
       });
@@ -223,13 +249,21 @@ class Hospital extends Component {
    * 删除地图标记
    */
   removeMarker = (feature) => {
-    const name = feature.get('name');
-    const value = this.allFeature[name];
-    if (value === 1) {
-      this.allFeature[name] = 0;
-      markerVectorSource.removeFeature(feature);
+    const sum = vectorSource.getFeatures().length;
+    if (sum === 0) {
+      markerVectorSource.clear();
+      this.allFeature = [];
     } else {
-      this.allFeature[name] = value - 1;
+      let isDelete = true;
+      vectorSource.forEachFeature((item) => {
+        if (item.getGeometry().intersectsCoordinate(feature.getGeometry().getCoordinates())) {
+          isDelete = false;
+        }
+      });
+      if (isDelete) {
+        this.allFeature = this.allFeature.filter((it) => it !== feature.getId());
+        markerVectorSource.removeFeature(feature);
+      }
     }
   };
 
@@ -238,13 +272,13 @@ class Hospital extends Component {
    */
   deleteDraw = () => {
     const geometry = this.deleteFeature.getGeometry();
+    vectorSource.removeFeature(this.deleteFeature);
     markerVectorSource
       .getFeatures()
       .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()))
       .forEach((item) => {
         this.removeMarker(item);
       });
-    vectorSource.removeFeature(this.deleteFeature);
   };
 
   /**
@@ -355,22 +389,22 @@ class Hospital extends Component {
   };
 
   handleCircleBefore = (feature) => {
-    const geometry = feature.getGeometry();
-    this.beforeCenter = geometry.getCenter();
-    this.beforeRadius = geometry.getRadius();
+    const geometryCircle = feature.getGeometry();
+    this.beforeCenter = geometryCircle.getCenter();
+    this.beforeRadius = geometryCircle.getRadius();
     this.beforeMarkList = markerVectorSource
       .getFeatures()
-      .filter((item) => geometry.intersectsCoordinate(item.getGeometry().getCoordinates()));
+      .filter((item) => geometryCircle.intersectsCoordinate(item.getGeometry().getCoordinates()));
   };
 
   handleCircleAfter = (feature) => {
-    const geometry = feature.getGeometry();
-    const center = geometry.getCenter();
-    const radius = geometry.getRadius();
+    const geometryCircle = feature.getGeometry();
+    const center = geometryCircle.getCenter();
+    const radius = geometryCircle.getRadius();
     // drag
     if (this.beforeCenter.toString() !== center.toString()) {
       this.beforeMarkList.forEach((item) => {
-        if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+        if (!geometryCircle.intersectsCoordinate(item.getGeometry().getCoordinates())) {
           this.removeMarker(item);
         }
       });
@@ -387,7 +421,7 @@ class Hospital extends Component {
       });
     } else {
       this.beforeMarkList.forEach((item) => {
-        if (!geometry.intersectsCoordinate(item.getGeometry().getCoordinates())) {
+        if (!geometryCircle.intersectsCoordinate(item.getGeometry().getCoordinates())) {
           this.removeMarker(item);
         }
       });
@@ -404,8 +438,17 @@ class Hospital extends Component {
       });
       if (selectedFeature) {
         evt.stopPropagation();
-        const coordinates = selectedFeature.getGeometry().getCoordinates();
-        this.map.getOverlayById('popup').setPosition(coordinates);
+        this.setState(
+          {
+            hospital: {
+              ...selectedFeature.getProperties(),
+            },
+          },
+          () => {
+            const coordinates = selectedFeature.getGeometry().getCoordinates();
+            this.map.getOverlayById('popup').setPosition(coordinates);
+          },
+        );
       }
     });
 
@@ -505,8 +548,38 @@ class Hospital extends Component {
     return false;
   };
 
+  /**
+   * 跳转到官网详情页面
+   * @param value
+   */
+  handleDetail = (value) => {
+    const tempForm = document.createElement('form');
+    tempForm.id = 'tempForm1';
+    tempForm.method = 'post';
+    tempForm.action = 'https://fw.ybj.beijing.gov.cn/ddyy/ddyy/list';
+    tempForm.target = 'ddyy1form';
+
+    const hideInput = document.createElement('input');
+    hideInput.type = 'hidden';
+    hideInput.name = 'search_LIKE_yymc';
+    hideInput.value = value;
+
+    tempForm.appendChild(hideInput);
+
+    tempForm.addEventListener('submit', () => {
+      window.open('https://fw.ybj.beijing.gov.cn/ddyy/ddyy/list', 'ddyy1form');
+    });
+
+    document.body.appendChild(tempForm);
+
+    tempForm.submit();
+
+    document.body.removeChild(tempForm);
+  };
+
   render() {
-    const { type } = this.state;
+    const { type, hospital } = this.state;
+    const { name, code, type: hospitalType, lvl, address, introduction } = hospital;
     return (
       <div style={{ position: 'relative' }}>
         <div ref={this.olRef} style={{ height: '100vh' }}>
@@ -514,7 +587,22 @@ class Hospital extends Component {
             <a href="#" className={styles.olPopupCloser} onClick={this.handleClose}>
               ✖
             </a>
-            <div id="popup-content">test</div>
+            <div id="popup-content">
+              <Descriptions column={1}>
+                <Descriptions.Item label="名称">
+                  <Link href="#" copyable onClick={() => this.handleDetail(name)}>
+                    {name}
+                  </Link>
+                </Descriptions.Item>
+                <Descriptions.Item label="编码">
+                  <Text copyable>{code}</Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="等级">{lvl}</Descriptions.Item>
+                <Descriptions.Item label="类型">{hospitalType}</Descriptions.Item>
+                <Descriptions.Item label="地址">{address}</Descriptions.Item>
+                <Descriptions.Item label="简介">{introduction}</Descriptions.Item>
+              </Descriptions>
+            </div>
           </div>
         </div>
         <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
