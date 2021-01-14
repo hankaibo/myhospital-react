@@ -225,7 +225,7 @@ class Hospital extends Component {
             row = 5;
             break;
           default:
-            idx = 8;
+            idx = 3;
             row = 0;
         }
         return [19 + 88 * idx, 8 + 88 * row];
