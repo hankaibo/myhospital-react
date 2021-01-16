@@ -41,3 +41,30 @@
     text-decoration: none;
   }
 }
+
+.box {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  width: 360px;
+
+  .listContainer {
+    height: 500px;
+    margin-top: 1px;
+    padding: 8px 24px;
+    overflow: auto;
+    background: white;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    :global {
+      .ant-list-item {
+        padding-bottom: 0;
+      }
+    }
+
+    .description {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+}

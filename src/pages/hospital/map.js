@@ -1,15 +1,15 @@
 import React, { Component, createRef } from 'react';
-import { Select as AntSelect, Descriptions, Typography } from 'antd';
+import { Select as AntSelect, Descriptions, Typography, List, message } from 'antd';
 import { connect } from 'umi';
 import Map from 'ol/Map';
 import View from 'ol/View';
-import { XYZ, Vector as VectorSource } from 'ol/source';
+import { XYZ, Vector as VectorSource, Cluster } from 'ol/source';
 import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
-import { ZoomToExtent, defaults as defaultControls } from 'ol/control';
+import { defaults as defaultControls } from 'ol/control';
 import { Draw, Modify, Snap, Select } from 'ol/interaction';
 import Feature from 'ol/Feature';
 import Overlay from 'ol/Overlay';
-import { Fill, Stroke, Style, Icon, Circle as CircleStyle } from 'ol/style';
+import { Fill, Stroke, Style, Icon, Circle as CircleStyle, Text as TextStyle } from 'ol/style';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import Point from 'ol/geom/Point';
 import { click } from 'ol/events/condition';
@@ -49,14 +49,68 @@ const vectorLayer = new VectorLayer({
 });
 vectorLayer.set('name', 'vectorLayer');
 
-// 矢量图层（标记）
-const markerVectorSource = new VectorSource({
-  wrapX: true,
-});
-const markerVectorLayer = new VectorLayer({
+// 聚合图层
+const markerVectorSource = new VectorSource();
+const clusterSource = new Cluster({
+  distance: 40,
   source: markerVectorSource,
 });
-markerVectorLayer.set('name', 'markerVectorLayer');
+const styleCache = {};
+const handleOffset = (index, tag) => {
+  let row = 0;
+  let idx = index;
+  switch (tag) {
+    case 'blue':
+      if (index > 9) {
+        row = 2;
+        idx = index - 10;
+      } else {
+        row = 1;
+      }
+      break;
+    case 'red':
+      if (index > 9) {
+        row = 4;
+        idx = index - 10;
+      } else {
+        row = 3;
+      }
+      break;
+    case 'yellow':
+      row = 5;
+      break;
+    default:
+      idx = 3;
+      row = 0;
+  }
+  return [19 + 88 * idx, 8 + 88 * row];
+};
+const clusterLayer = new VectorLayer({
+  source: clusterSource,
+  style(feature) {
+    const size = feature.get('features').length;
+    let style = styleCache[size];
+    if (!style) {
+      style = new Style({
+        image: new Icon({
+          anchor: [0.5, 0.96],
+          size: [44, 64],
+          offset: handleOffset(1),
+          src: 'https://www.amap.com/assets/img/poi-marker.png',
+        }),
+        text: new TextStyle({
+          text: size.toString(),
+          fill: new Fill({
+            color: '#fff',
+          }),
+        }),
+      });
+      styleCache[size] = style;
+    }
+    return style;
+  },
+});
+clusterLayer.set('name', 'clusterLayer');
 
 // 矢量图层（用户）
 const userVectorSource = new VectorSource();
@@ -70,10 +124,10 @@ class Hospital extends Component {
     this.state = {
       type: 'Circle',
       hospital: {},
+      hospitalList: [],
     };
     this.olRef = createRef();
     this.popupRef = createRef();
-    this.foo = createRef();
 
     this.map = undefined;
     this.draw = undefined;
@@ -85,15 +139,13 @@ class Hospital extends Component {
     this.beforeMarkList = [];
     this.beforeCenter = [];
     this.beforeRadius = 0;
-
-    this.selectHospital = {};
   }
 
   componentDidMount() {
     // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
-      layers: [rasterLayer, vectorLayer, markerVectorLayer],
+      layers: [rasterLayer, vectorLayer, clusterLayer],
       view: new View({
         // projection: 'EPSG:4326',
         center: fromLonLat([116.397507, 39.908708]), // 默认北京
@@ -113,13 +165,10 @@ class Hospital extends Component {
         }),
       ],
       controls: defaultControls({
+        zoom: false,
         rotate: false,
         attribution: false,
-      }).extend([
-        new ZoomToExtent({
-          extent: [12879665.084781753, 4779131.18122614, 13068908.219130317, 5101248.438166104],
-        }),
-      ]),
+      }),
     });
 
     // 添加交互功能
@@ -136,7 +185,11 @@ class Hospital extends Component {
   }
 
   shouldComponentUpdate(nextProps, nextStatue) {
-    return this.props.list !== nextProps.list || this.state.hospital !== nextStatue.hospital;
+    return (
+      this.props.list !== nextProps.list ||
+      this.state.hospital !== nextStatue.hospital ||
+      this.state.hospitalList !== nextStatue.hospitalList
+    );
   }
 
   componentDidUpdate() {
@@ -178,7 +231,7 @@ class Hospital extends Component {
         this.allFeature.push(item.id);
         newList.push(item);
       });
-    newList.forEach((item, i) => {
+    newList.forEach((item) => {
       const iconFeature = new Feature({
         geometry: new Point(fromLonLat([item.lng, item.lat])),
         id: item.id,
@@ -191,55 +244,6 @@ class Hospital extends Component {
         address: item.address,
         introduction: item.introduction,
       });
-
-      // padding-top: 8
-      // padding-left: 19
-      // padding-right: 45
-      // padding-bottom:24
-      // 1-10蓝标: [19+88*i,8+88*1]
-      // 11-20蓝标：[19+88*i,8+88*2]
-      // 1-10红标: [19+88*i,8+88*3]
-      // 11-20红标：[19+88*i,8+88*4]
-      // 1-10黄标: [19+88*i,8+88*5]
-      const handleOffset = (index, tag) => {
-        let row = 0;
-        let idx = index;
-        switch (tag) {
-          case 'blue':
-            if (index > 9) {
-              row = 2;
-              idx = index - 10;
-            } else {
-              row = 1;
-            }
-            break;
-          case 'red':
-            if (index > 9) {
-              row = 4;
-              idx = index - 10;
-            } else {
-              row = 3;
-            }
-            break;
-          case 'yellow':
-            row = 5;
-            break;
-          default:
-            idx = 3;
-            row = 0;
-        }
-        return [19 + 88 * idx, 8 + 88 * row];
-      };
-
-      const iconStyle = new Style({
-        image: new Icon({
-          anchor: [0.5, 0.96],
-          size: [44, 64],
-          offset: handleOffset(i, 'red'),
-          src: 'https://www.amap.com/assets/img/poi-marker.png',
-        }),
-      });
-      iconFeature.setStyle(iconStyle);
       markerVectorSource.addFeature(iconFeature);
     });
     this.beforeMarkList = [];
@@ -261,7 +265,7 @@ class Hospital extends Component {
         }
       });
       if (isDelete) {
-        this.allFeature = this.allFeature.filter((it) => it !== feature.getId());
+        this.allFeature = this.allFeature.filter((it) => it !== feature.get('id'));
         markerVectorSource.removeFeature(feature);
       }
     }
@@ -378,12 +382,20 @@ class Hospital extends Component {
     if (this.select !== null) {
       this.map.addInteraction(this.select);
       this.select.on('select', (e) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `${e.target.getFeatures().getLength()} selected features (last operation selected ${
-            e.selected.length
-          } and deselected ${e.deselected.length} features)`,
-        );
+        if (e.selected.length) {
+          this.setState({
+            hospitalList: markerVectorSource
+              .getFeatures()
+              .filter((item) => e.selected[0].getGeometry().intersectsCoordinate(item.getGeometry().getCoordinates()))
+              .map((item) => {
+                return { ...item.getProperties() };
+              }),
+          });
+        } else {
+          this.setState({
+            hospitalList: [],
+          });
+        }
       });
     }
   };
@@ -434,21 +446,27 @@ class Hospital extends Component {
   addEvent = () => {
     this.map.on('click', (evt) => {
       const selectedFeature = this.map.forEachFeatureAtPixel(evt.pixel, (feature) => feature, {
-        layerFilter: (layer) => layer.get('name') === 'markerVectorLayer',
+        layerFilter: (layer) => layer.get('name') === 'clusterLayer',
       });
       if (selectedFeature) {
-        evt.stopPropagation();
-        this.setState(
-          {
-            hospital: {
-              ...selectedFeature.getProperties(),
+        // eslint-disable-next-line no-underscore-dangle
+        if (selectedFeature.values_.features.length === 1) {
+          evt.stopPropagation();
+          this.setState(
+            {
+              hospital: {
+                // eslint-disable-next-line no-underscore-dangle
+                ...selectedFeature.values_.features[0].getProperties(),
+              },
             },
-          },
-          () => {
-            const coordinates = selectedFeature.getGeometry().getCoordinates();
-            this.map.getOverlayById('popup').setPosition(coordinates);
-          },
-        );
+            () => {
+              const coordinates = selectedFeature.getGeometry().getCoordinates();
+              this.map.getOverlayById('popup').setPosition(coordinates);
+            },
+          );
+        } else {
+          message.warning('聚合元素不可以显示详情，请重新选择。');
+        }
       }
     });
 
@@ -578,7 +596,7 @@ class Hospital extends Component {
   };
 
   render() {
-    const { type, hospital } = this.state;
+    const { type, hospital, hospitalList } = this.state;
     const { name, code, type: hospitalType, lvl, address, introduction } = hospital;
     return (
       <div style={{ position: 'relative' }}>
@@ -605,6 +623,54 @@ class Hospital extends Component {
             </div>
           </div>
         </div>
+        {hospitalList.length > 0 && (
+          <div className={styles.box}>
+            <div>
+              <AntSelect size="large" style={{ width: '50%' }} allowClear>
+                <Option value="-">-</Option>
+                <Option value="A类医院">A类医院</Option>
+                <Option value="对外综合">对外综合</Option>
+                <Option value="对外专科">对外专科</Option>
+                <Option value="对外中医">对外中医</Option>
+                <Option value="社区卫生站">社区卫生站</Option>
+                <Option value="对内">对内</Option>
+              </AntSelect>
+              <AntSelect size="large" style={{ width: '50%' }} allowClear>
+                <Option value="-">-</Option>
+                <Option value="三级">三级</Option>
+                <Option value="二级">二级</Option>
+                <Option value="一级">一级</Option>
+                <Option value="未评级">未评级</Option>
+              </AntSelect>
+            </div>
+            <div className={styles.listContainer}>
+              <List
+                itemLayout="horizontal"
+                dataSource={hospitalList}
+                renderItem={(item, index) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={
+                        <>
+                          <span>{index + 1} </span>
+                          <Link href="#" onClick={() => this.handleDetail(name)}>
+                            {item.name}
+                          </Link>
+                        </>
+                      }
+                      description={
+                        <p className={styles.description}>
+                          <Text>{item.type}</Text>
+                          <Text>{item.lvl}</Text>
+                        </p>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </div>
+          </div>
+        )}
         <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
           <AntSelect defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
             <Option value="Circle">圆形</Option>
