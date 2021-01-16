@@ -20,6 +20,7 @@ const Hospital = connect(({ hospital: { list, pagination }, loading }) => ({
     current: pagination.current || 1,
     pageSize: pagination.pageSize || 10,
     lvl: '',
+    name: '',
   });
 
   // 【查询医院列表】
@@ -38,8 +39,11 @@ const Hospital = connect(({ hospital: { list, pagination }, loading }) => ({
   }, [params, dispatch]);
 
   // 【搜索】
-  const handleFormSubmit = () => {
-    message.info('暂未开放。');
+  const handleFormSubmit = (value) => {
+    setParams({
+      ...params,
+      name: value,
+    });
   };
 
   // 【批量删除医院】
