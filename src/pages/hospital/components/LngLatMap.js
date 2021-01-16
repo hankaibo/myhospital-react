@@ -1,9 +1,12 @@
 import React, { Component, createRef } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
-import { XYZ } from 'ol/source';
-import { Tile as TileLayer } from 'ol/layer';
+import { XYZ, Vector as VectorSource } from 'ol/source';
+import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
 import { ZoomToExtent, defaults as defaultControls, MousePosition } from 'ol/control';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import { Stroke, Style, Circle as CircleStyle } from 'ol/style';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import 'ol/ol.css';
 
@@ -16,6 +19,12 @@ const rasterLayer = new TileLayer({
   }),
 });
 
+// 矢量图层
+const vectorSource = new VectorSource();
+const vectorLayer = new VectorLayer({
+  source: vectorSource,
+});
+
 class LngLatMap extends Component {
   constructor(props) {
     super(props);
@@ -24,15 +33,17 @@ class LngLatMap extends Component {
   }
 
   componentDidMount() {
+    const { center } = this.props;
+    const defaultCenter = [116.397507, 39.908708];
     // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
-      layers: [rasterLayer],
+      layers: [rasterLayer, vectorLayer],
       view: new View({
         // projection: 'EPSG:4326',
-        center: fromLonLat([116.397507, 39.908708]), // 默认北京
-        zoom: 13,
-        minZoom: 0,
+        center: fromLonLat(center || defaultCenter), // 默认北京
+        zoom: 17,
+        minZoom: 3,
         maxZoom: 18,
         constrainResolution: true,
       }),
@@ -52,6 +63,7 @@ class LngLatMap extends Component {
   }
 
   componentWillUnmount() {
+    vectorSource.clear();
     this.map.setTarget(undefined);
   }
 
@@ -60,6 +72,38 @@ class LngLatMap extends Component {
     this.map.on('click', (e) => {
       const lonLat = toLonLat(e.coordinate);
       onSelect(lonLat);
+    });
+
+    // 标记
+    const circle = new Feature({
+      geometry: new Point(this.map.getView().getCenter()),
+    });
+    circle.setStyle(
+      new Style({
+        image: new CircleStyle({
+          radius: 0,
+          stroke: new Stroke({
+            color: 'red',
+          }),
+        }),
+      }),
+    );
+    vectorSource.addFeature(circle);
+    // 动画
+    let radius = 0;
+    this.map.on('postcompose', () => {
+      radius += 1;
+      radius %= 20;
+      circle.setStyle(
+        new Style({
+          image: new CircleStyle({
+            radius,
+            stroke: new Stroke({
+              color: 'red',
+            }),
+          }),
+        }),
+      );
     });
   };
 

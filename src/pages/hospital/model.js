@@ -8,6 +8,14 @@ import {
   circleHospital,
 } from './service';
 
+const formatLngLat = (value) => {
+  const { lngLat, ...rest } = value;
+  if (Array.isArray(lngLat) && lngLat.length === 2) {
+    return { ...rest, lng: lngLat[0], lat: lngLat[1] };
+  }
+  return value;
+};
+
 export default {
   namespace: 'hospital',
 
@@ -68,7 +76,7 @@ export default {
       if (callback) callback();
     },
     *add({ payload, callback }, { call, put, select }) {
-      const values = { ...payload };
+      const values = formatLngLat(payload);
       const response = yield call(addHospital, values);
       const { apierror } = response;
       if (apierror) {
@@ -91,16 +99,20 @@ export default {
       if (apierror) {
         return;
       }
+      const { lng, lat } = response;
       yield put({
         type: 'save',
         payload: {
-          hospital: response,
+          hospital: {
+            ...response,
+            lngLat: [lng, lat],
+          },
         },
       });
       if (callback) callback();
     },
     *update({ payload, callback }, { call, put, select }) {
-      const values = { ...payload };
+      const values = formatLngLat(payload);
       const response = yield call(updateHospital, values);
       const { apierror } = response;
       if (apierror) {

@@ -17,7 +17,7 @@ const InputLngLat = ({ value, onChange }) => {
 
   const handleChange = (lonLat) => {
     hideModelHandler();
-    onChange(lonLat.toString());
+    onChange(lonLat);
   };
 
   return (
@@ -32,7 +32,7 @@ const InputLngLat = ({ value, onChange }) => {
       />
       {visible && (
         <Modal width={1000} destroyOnClose visible={visible} footer={null} onCancel={hideModelHandler}>
-          <LngLatMap onSelect={handleChange} />
+          <LngLatMap onSelect={handleChange} center={value} />
         </Modal>
       )}
     </span>
