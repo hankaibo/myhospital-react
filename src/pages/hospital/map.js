@@ -25,7 +25,7 @@ const { Link, Text } = Typography;
 const rasterLayer = new TileLayer({
   source: new XYZ({
     // 高德
-    url: 'https://webrd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&scl=1&x={x}&y={y}&z={z}',
+    url: 'https://webrd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&scl=1&x={x}&y={y}&z={z}',
     // crossOrigin: '',
   }),
 });
@@ -56,35 +56,6 @@ const clusterSource = new Cluster({
   source: markerVectorSource,
 });
 const styleCache = {};
-const handleOffset = (index, tag) => {
-  let row = 0;
-  let idx = index;
-  switch (tag) {
-    case 'blue':
-      if (index > 9) {
-        row = 2;
-        idx = index - 10;
-      } else {
-        row = 1;
-      }
-      break;
-    case 'red':
-      if (index > 9) {
-        row = 4;
-        idx = index - 10;
-      } else {
-        row = 3;
-      }
-      break;
-    case 'yellow':
-      row = 5;
-      break;
-    default:
-      idx = 3;
-      row = 0;
-  }
-  return [19 + 88 * idx, 8 + 88 * row];
-};
 const clusterLayer = new VectorLayer({
   source: clusterSource,
   style(feature) {
@@ -93,15 +64,17 @@ const clusterLayer = new VectorLayer({
     if (!style) {
       style = new Style({
         image: new Icon({
-          anchor: [0.5, 0.96],
-          size: [44, 64],
-          offset: handleOffset(1),
-          src: 'https://www.amap.com/assets/img/poi-marker.png',
+          anchor: [0.5, 30],
+          anchorXUnits: 'fraction',
+          anchorYUnits: 'pixels',
+          src: '../marker.png',
         }),
         text: new TextStyle({
+          font: 'bold 18px serif',
+          offsetY: '-16',
           text: size.toString(),
           fill: new Fill({
-            color: '#fff',
+            color: '#000',
           }),
         }),
       });
@@ -125,6 +98,8 @@ class Hospital extends Component {
       type: 'Circle',
       hospital: {},
       hospitalList: [],
+      filterLvl: '-',
+      filterType: '-',
     };
     this.olRef = createRef();
     this.popupRef = createRef();
@@ -188,7 +163,9 @@ class Hospital extends Component {
     return (
       this.props.list !== nextProps.list ||
       this.state.hospital !== nextStatue.hospital ||
-      this.state.hospitalList !== nextStatue.hospitalList
+      this.state.hospitalList !== nextStatue.hospitalList ||
+      this.state.filterLvl !== nextStatue.filterLvl ||
+      this.state.filterType !== nextStatue.filterType
     );
   }
 
@@ -199,6 +176,10 @@ class Hospital extends Component {
 
   componentWillUnmount() {
     this.map.setTarget(undefined);
+    const { dispatch } = this.props;
+    dispatch({
+      type: 'hospital/clearMap',
+    });
   }
 
   /**
@@ -211,6 +192,11 @@ class Hospital extends Component {
       type: 'hospital/fetchMap',
       payload: {
         ...params,
+      },
+      callback() {
+        dispatch({
+          type: 'hospital/clearMap',
+        });
       },
     });
   };
@@ -275,6 +261,13 @@ class Hospital extends Component {
    * 删除选中的图形区域
    */
   deleteDraw = () => {
+    const selected = this.select.getFeatures();
+    if (this.deleteFeature === selected.getArray()[0]) {
+      this.setState({
+        hospitalList: [],
+      });
+    }
+
     const geometry = this.deleteFeature.getGeometry();
     vectorSource.removeFeature(this.deleteFeature);
     markerVectorSource
@@ -449,14 +442,12 @@ class Hospital extends Component {
         layerFilter: (layer) => layer.get('name') === 'clusterLayer',
       });
       if (selectedFeature) {
-        // eslint-disable-next-line no-underscore-dangle
-        if (selectedFeature.values_.features.length === 1) {
+        if (selectedFeature.get('features').length === 1) {
           evt.stopPropagation();
           this.setState(
             {
               hospital: {
-                // eslint-disable-next-line no-underscore-dangle
-                ...selectedFeature.values_.features[0].getProperties(),
+                ...selectedFeature.get('features')[0].getProperties(),
               },
             },
             () => {
@@ -475,7 +466,7 @@ class Hospital extends Component {
         return;
       }
       const hit = this.map.hasFeatureAtPixel(e.pixel, {
-        layerFilter: (layer) => layer.get('name') === 'vectorLayer',
+        layerFilter: (layer) => layer.get('name') === 'vectorLayer' || layer.get('name') === 'clusterLayer',
       });
       this.draw.setActive(!hit);
       this.map.getTargetElement().style.cursor = hit ? 'pointer' : '';
@@ -595,6 +586,13 @@ class Hospital extends Component {
     document.body.removeChild(tempForm);
   };
 
+  handleFilter = (hospitalList) => {
+    const { filterLvl, filterType } = this.state;
+    return hospitalList
+      .filter((item) => (filterLvl !== '-' ? item.lvl === filterLvl : item))
+      .filter((item) => (filterType !== '-' ? item.type === filterType : item));
+  };
+
   render() {
     const { type, hospital, hospitalList } = this.state;
     const { name, code, type: hospitalType, lvl, address, introduction } = hospital;
@@ -626,7 +624,13 @@ class Hospital extends Component {
         {hospitalList.length > 0 && (
           <div className={styles.box}>
             <div>
-              <AntSelect size="large" style={{ width: '50%' }} allowClear>
+              <AntSelect
+                defaultValue="-"
+                size="large"
+                style={{ width: '50%' }}
+                allowClear
+                onChange={(value) => this.setState({ filterType: value })}
+              >
                 <Option value="-">-</Option>
                 <Option value="A类医院">A类医院</Option>
                 <Option value="对外综合">对外综合</Option>
@@ -635,7 +639,13 @@ class Hospital extends Component {
                 <Option value="社区卫生站">社区卫生站</Option>
                 <Option value="对内">对内</Option>
               </AntSelect>
-              <AntSelect size="large" style={{ width: '50%' }} allowClear>
+              <AntSelect
+                defaultValue="-"
+                size="large"
+                style={{ width: '50%' }}
+                allowClear
+                onChange={(value) => this.setState({ filterLvl: value })}
+              >
                 <Option value="-">-</Option>
                 <Option value="三级">三级</Option>
                 <Option value="二级">二级</Option>
@@ -646,7 +656,7 @@ class Hospital extends Component {
             <div className={styles.listContainer}>
               <List
                 itemLayout="horizontal"
-                dataSource={hospitalList}
+                dataSource={this.handleFilter(hospitalList)}
                 renderItem={(item, index) => (
                   <List.Item>
                     <List.Item.Meta
@@ -686,5 +696,5 @@ class Hospital extends Component {
 
 export default connect(({ hospital: { mapData }, loading }) => ({
   list: mapData,
-  loading: loading.effects['hospital/fetch'],
+  loading: loading.effects['hospital/fetchMap'],
 }))(Hospital);

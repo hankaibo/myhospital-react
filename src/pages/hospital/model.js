@@ -38,7 +38,6 @@ export default {
         lng: center[0],
         lat: center[1],
         r: radius,
-        limit: 20,
       };
       const response = yield call(circleHospital, params);
       const { apierror } = response;
