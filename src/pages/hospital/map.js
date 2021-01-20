@@ -628,7 +628,6 @@ class Hospital extends Component {
                 defaultValue="-"
                 size="large"
                 style={{ width: '50%' }}
-                allowClear
                 onChange={(value) => this.setState({ filterType: value })}
               >
                 <Option value="-">-</Option>
@@ -643,7 +642,6 @@ class Hospital extends Component {
                 defaultValue="-"
                 size="large"
                 style={{ width: '50%' }}
-                allowClear
                 onChange={(value) => this.setState({ filterLvl: value })}
               >
                 <Option value="-">-</Option>
