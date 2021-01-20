@@ -1,6 +1,6 @@
 {
   "name": "My Ant Design Pro",
-  "short_name": "my antdpro",
+  "short_name": "my hospital",
   "display": "standalone",
   "start_url": "./?utm_source=homescreen",
   "theme_color": "#002140",

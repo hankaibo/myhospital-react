@@ -3,7 +3,7 @@ import { reloadAuthorized } from './Authorized';
 // use localStorage to store the authority info, which might be sent from server in actual project.
 export function getAuthority(str) {
   const authorityString =
-    typeof str === 'undefined' && localStorage ? localStorage.getItem('myantdpro-authority') : str;
+    typeof str === 'undefined' && localStorage ? localStorage.getItem('myhospital-authority') : str;
   // authorityString could be admin, "admin", ["admin"]
   let authority;
   try {
@@ -20,8 +20,8 @@ export function getAuthority(str) {
 }
 
 export function setAuthority(authority) {
-  const myantdproAuthority = typeof authority === 'string' ? authority.split(',') : authority;
-  localStorage.setItem('myantdpro-authority', JSON.stringify(myantdproAuthority));
+  const myhospitalAuthority = typeof authority === 'string' ? authority.split(',') : authority;
+  localStorage.setItem('myhospital-authority', JSON.stringify(myhospitalAuthority));
   // auto reload
   reloadAuthorized();
 }
