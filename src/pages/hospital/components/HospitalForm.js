@@ -1,76 +1,10 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Button, message } from 'antd';
-import { connect } from 'umi';
-import { isEmpty } from '@/utils/utils';
+import React from 'react';
+import { Form, Input, Select, Button } from 'antd';
 import InputLngLat from './InputLngLat';
 
-const HospitalForm = connect(({ hospital: { hospital }, loading }) => ({
-  hospital,
-  loading:
-    loading.effects['hospital/fetchById'] || loading.effects['hospital/add'] || loading.effects['hospital/update'],
-}))(({ loading, isEdit, id, hospital, closeModal, dispatch }) => {
-  const [form] = Form.useForm();
-  const { setFieldsValue, resetFields } = form;
+const { Option } = Select;
 
-  // 【修改时，获取医院表单数据】
-  useEffect(() => {
-    if (isEdit) {
-      dispatch({
-        type: 'hospital/fetchById',
-        payload: {
-          id,
-        },
-      });
-    }
-    return () => {
-      if (isEdit) {
-        dispatch({
-          type: 'hospital/clear',
-        });
-      }
-    };
-  }, [isEdit, id, dispatch]);
-
-  // 【修改时，回显医院表单】
-  useEffect(() => {
-    // 👍 将条件判断放置在 effect 中
-    if (isEdit) {
-      if (!isEmpty(hospital)) {
-        setFieldsValue(hospital);
-      }
-    }
-  }, [isEdit, hospital, setFieldsValue]);
-
-  // 【添加与修改】
-  const handleAddOrUpdate = (values) => {
-    if (isEdit) {
-      dispatch({
-        type: 'hospital/update',
-        payload: {
-          ...values,
-          id,
-        },
-        callback: () => {
-          resetFields();
-          closeModal();
-          message.success('修改医院成功。');
-        },
-      });
-    } else {
-      dispatch({
-        type: 'hospital/add',
-        payload: {
-          ...values,
-        },
-        callback: () => {
-          resetFields();
-          closeModal();
-          message.success('添加医院成功。');
-        },
-      });
-    }
-  };
-
+const HospitalForm = ({ loading, form, onFinish, closeModal }) => {
   // 【表单布局】
   const layout = {
     labelCol: {
@@ -90,7 +24,7 @@ const HospitalForm = connect(({ hospital: { hospital }, loading }) => ({
   };
 
   return (
-    <Form {...layout} form={form} name="hospitalForm" className="form" onFinish={handleAddOrUpdate}>
+    <Form {...layout} form={form} name="hospitalForm" className="form" onFinish={onFinish}>
       <Form.Item
         label="名称"
         name="name"
@@ -116,10 +50,22 @@ const HospitalForm = connect(({ hospital: { hospital }, loading }) => ({
         <Input />
       </Form.Item>
       <Form.Item label="类别" name="type" rules={[{ message: '请将类别长度保持在1至255字符之间！', min: 1, max: 255 }]}>
-        <Input />
+        <Select>
+          <Option value="A类医院">A类医院</Option>
+          <Option value="对外综合">对外综合</Option>
+          <Option value="对外专科">对外专科</Option>
+          <Option value="对外中医">对外中医</Option>
+          <Option value="社区卫生站">社区卫生站</Option>
+          <Option value="对内">对内</Option>
+        </Select>
       </Form.Item>
       <Form.Item label="等级" name="lvl" rules={[{ message: '请将等级长度保持在1至255字符之间！', min: 1, max: 255 }]}>
-        <Input />
+        <Select>
+          <Option value="三级">三级</Option>
+          <Option value="二级">二级</Option>
+          <Option value="一级">一级</Option>
+          <Option value="未评级">未评级</Option>
+        </Select>
       </Form.Item>
       <Form.Item
         label="地址"
@@ -153,6 +99,6 @@ const HospitalForm = connect(({ hospital: { hospital }, loading }) => ({
       </Form.Item>
     </Form>
   );
-});
+};
 
 export default HospitalForm;

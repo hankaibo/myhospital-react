@@ -6,7 +6,7 @@ import { connect, Link } from 'umi';
 import Authorized from '@/utils/Authorized';
 import RenderPropsModal from '@/components/RenderModal';
 import { getValue } from '@/utils/utils';
-import HospitalForm from './components/HospitalForm';
+import HospitalForm from './components/BeiJingForm';
 
 const Hospital = connect(({ hospital: { list, pagination }, loading }) => ({
   list,

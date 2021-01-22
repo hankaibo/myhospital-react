@@ -5,7 +5,6 @@ import {
   updateHospital,
   deleteHospital,
   deleteBatchHospital,
-  circleHospital,
 } from './service';
 
 const formatLngLat = (value) => {
@@ -17,7 +16,7 @@ const formatLngLat = (value) => {
 };
 
 export default {
-  namespace: 'hospital',
+  namespace: 'hospitalA19',
 
   state: {
     // 列表
@@ -32,26 +31,6 @@ export default {
   },
 
   effects: {
-    *fetchMap({ payload, callback }, { call, put }) {
-      const { center, radius } = payload;
-      const params = {
-        lng: center[0],
-        lat: center[1],
-        r: radius,
-      };
-      const response = yield call(circleHospital, params);
-      const { apierror } = response;
-      if (apierror) {
-        return;
-      }
-      yield put({
-        type: 'saveMap',
-        payload: {
-          mapData: response,
-        },
-      });
-      if (callback) callback();
-    },
     *fetch({ payload, callback }, { call, put }) {
       yield put({
         type: 'saveFilter',
@@ -75,13 +54,13 @@ export default {
       if (callback) callback();
     },
     *add({ payload, callback }, { call, put, select }) {
-      const values = formatLngLat(payload);
-      const response = yield call(addHospital, values);
+      const { id } = payload;
+      const response = yield call(addHospital, id);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.hospital.filter);
+      const filter = yield select((state) => state.hospitalA19.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -117,7 +96,7 @@ export default {
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.hospital.filter);
+      const filter = yield select((state) => state.hospitalA19.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -133,7 +112,7 @@ export default {
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.hospital.filter);
+      const filter = yield select((state) => state.hospitalA19.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -148,7 +127,7 @@ export default {
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.hospital.filter);
+      const filter = yield select((state) => state.hospitalA19.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -182,19 +161,6 @@ export default {
         list: [],
         pagination: {},
         filter: {},
-      };
-    },
-    saveMap(state, { payload }) {
-      const { mapData } = payload;
-      return {
-        ...state,
-        mapData,
-      };
-    },
-    clearMap(state) {
-      return {
-        ...state,
-        mapData: [],
       };
     },
     save(state, { payload }) {

@@ -1,7 +1,10 @@
 export default {
   'menu.home': 'Home',
   'menu.login': 'Login',
+  // hospital
   'menu.hospital': 'Hospital',
+  'menu.hospital.beijing': 'BeiJing',
+  'menu.hospital.a19': 'A19',
   // account
   'menu.account': 'Account',
   'menu.account.center': 'Center',

@@ -91,7 +91,7 @@ const userVectorLayer = new VectorLayer({
   source: userVectorSource,
 });
 
-class Hospital extends Component {
+class HospitalMap extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -178,7 +178,7 @@ class Hospital extends Component {
     this.map.setTarget(undefined);
     const { dispatch } = this.props;
     dispatch({
-      type: 'hospital/clearMap',
+      type: 'hospitalMap/clearMap',
     });
   }
 
@@ -189,13 +189,13 @@ class Hospital extends Component {
   handleFetch = (params) => {
     const { dispatch } = this.props;
     dispatch({
-      type: 'hospital/fetchMap',
+      type: 'hospitalMap/fetch',
       payload: {
         ...params,
       },
       callback() {
         dispatch({
-          type: 'hospital/clearMap',
+          type: 'hospitalMap/clearMap',
         });
       },
     });
@@ -694,5 +694,5 @@ class Hospital extends Component {
 
 export default connect(({ hospital: { mapData }, loading }) => ({
   list: mapData,
-  loading: loading.effects['hospital/fetchMap'],
-}))(Hospital);
+  loading: loading.effects['hospitalMap/fetch'],
+}))(HospitalMap);

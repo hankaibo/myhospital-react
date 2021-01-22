@@ -44,7 +44,18 @@ export default [
                 path: '/hospital',
                 name: 'hospital',
                 icon: 'medicine-box',
-                component: './hospital',
+                routes: [
+                  {
+                    path: '/hospital/beijing',
+                    name: 'beijing',
+                    component: './hospital/beijing',
+                  },
+                  {
+                    path: '/hospital/a19',
+                    name: 'a19',
+                    component: './hospital/a19',
+                  },
+                ],
               },
               // account
               {

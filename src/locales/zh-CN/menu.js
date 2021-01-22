@@ -1,7 +1,10 @@
 export default {
   'menu.home': '首页',
   'menu.login': '登录',
-  'menu.hospital': '医保定点医院',
+  // hospital
+  'menu.hospital': '医保医院配置',
+  'menu.hospital.beijing': '定点医院管理',
+  'menu.hospital.a19': 'A类医院管理',
   // account
   'menu.account': '个人页',
   'menu.account.center': '个人中心',
