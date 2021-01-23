@@ -25,31 +25,16 @@ const HospitalForm = ({ loading, form, onFinish, closeModal }) => {
 
   return (
     <Form {...layout} form={form} name="hospitalForm" className="form" onFinish={onFinish}>
-      <Form.Item
-        label="名称"
-        name="name"
-        rules={[
-          {
-            required: true,
-            message: '请将名称长度保持在1至255字符之间！',
-            min: 1,
-            max: 255,
-          },
-        ]}
-      >
+      <Form.Item label="名称" name="name" rules={[{ required: true }, { max: 255 }]}>
         <Input />
       </Form.Item>
-      <Form.Item label="编码" name="code" rules={[{ message: '请将编码长度保持在1至10字符之间！', min: 1, max: 10 }]}>
+      <Form.Item label="编码" name="code" rules={[{ required: true }, { max: 10 }]}>
         <Input />
       </Form.Item>
-      <Form.Item
-        label="所属区县"
-        name="district"
-        rules={[{ message: '请将区县长度保持在1至255字符之间！', min: 1, max: 255 }]}
-      >
+      <Form.Item label="所属区县" name="district" rules={[{ required: true }, { max: 255 }]}>
         <Input />
       </Form.Item>
-      <Form.Item label="类别" name="type" rules={[{ message: '请将类别长度保持在1至255字符之间！', min: 1, max: 255 }]}>
+      <Form.Item label="类别" name="type" rules={[{ required: true }]}>
         <Select>
           <Option value="A类医院">A类医院</Option>
           <Option value="对外综合">对外综合</Option>
@@ -59,7 +44,7 @@ const HospitalForm = ({ loading, form, onFinish, closeModal }) => {
           <Option value="对内">对内</Option>
         </Select>
       </Form.Item>
-      <Form.Item label="等级" name="lvl" rules={[{ message: '请将等级长度保持在1至255字符之间！', min: 1, max: 255 }]}>
+      <Form.Item label="等级" name="level" rules={[{ required: true }]}>
         <Select>
           <Option value="三级">三级</Option>
           <Option value="二级">二级</Option>
@@ -67,28 +52,16 @@ const HospitalForm = ({ loading, form, onFinish, closeModal }) => {
           <Option value="未评级">未评级</Option>
         </Select>
       </Form.Item>
-      <Form.Item
-        label="地址"
-        name="address"
-        rules={[{ message: '请将地址长度保持在1至255字符之间！', min: 1, max: 255 }]}
-      >
+      <Form.Item label="地址" name="address" rules={[{ max: 255 }]}>
         <Input />
       </Form.Item>
-      <Form.Item
-        label="邮编"
-        name="zipCode"
-        rules={[{ message: '请将邮编长度保持在1至10字符之间！', min: 1, max: 10 }]}
-      >
+      <Form.Item label="邮编" name="postalCode" rules={[{ max: 6 }]}>
         <Input />
       </Form.Item>
-      <Form.Item
-        label="简介"
-        name="introduction"
-        rules={[{ message: '请将简介长度保持在1至255字符之间！', min: 1, max: 255 }]}
-      >
+      <Form.Item label="简介" name="introduction" rules={[{ max: 255 }]}>
         <Input.TextArea placeholder="请输入简介。" autoSize={{ minRows: 3, maxRows: 6 }} />
       </Form.Item>
-      <Form.Item label="经纬度" name="lngLat">
+      <Form.Item label="经纬度" name="lngLat" rules={[{ required: true }]}>
         <InputLngLat />
       </Form.Item>
       <Form.Item {...tailLayout}>

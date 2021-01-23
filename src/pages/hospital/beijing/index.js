@@ -19,7 +19,7 @@ const Hospital = connect(({ hospital: { list, pagination }, loading }) => ({
   const [params, setParams] = useState({
     current: pagination.current || 1,
     pageSize: pagination.pageSize || 10,
-    lvl: '',
+    level: '',
     name: '',
   });
 
@@ -134,7 +134,7 @@ const Hospital = connect(({ hospital: { list, pagination }, loading }) => ({
     },
     {
       title: '医院等级',
-      dataIndex: 'lvl',
+      dataIndex: 'level',
       filters: [
         { text: '三级', value: 3 },
         { text: '二级', value: 2 },

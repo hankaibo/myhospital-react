@@ -7,5 +7,5 @@ import request from '@/utils/request';
  * @returns {Promise<void>}
  */
 export async function circleHospital(params) {
-  return request.get(`/hospitals/nearby/circle?${stringify(params)}`);
+  return request.get(`/hospitals/map/circle?${stringify(params)}`);
 }

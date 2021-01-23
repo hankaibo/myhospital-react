@@ -1,4 +1,5 @@
 import {
+  listHospital,
   pageHospital,
   addHospital,
   getHospitalById,
@@ -19,6 +20,9 @@ export default {
   namespace: 'hospitalA19',
 
   state: {
+    // 全部
+    allList: [],
+    allPagination: {},
     // 列表
     list: [],
     pagination: {},
@@ -26,11 +30,25 @@ export default {
     hospital: {},
     // 过滤参数
     filter: {},
-    // 地图数据
-    mapData: [],
   },
 
   effects: {
+    *fetchAll({ payload, callback }, { call, put }) {
+      const response = yield call(listHospital, payload);
+      const { apierror } = response;
+      if (apierror) {
+        return;
+      }
+      const { list, pageNum: current, pageSize, total } = response;
+      yield put({
+        type: 'saveAllList',
+        payload: {
+          allList: list,
+          allPagination: { current, pageSize, total },
+        },
+      });
+      if (callback) callback();
+    },
     *fetch({ payload, callback }, { call, put }) {
       yield put({
         type: 'saveFilter',
@@ -54,8 +72,7 @@ export default {
       if (callback) callback();
     },
     *add({ payload, callback }, { call, put, select }) {
-      const { id } = payload;
-      const response = yield call(addHospital, id);
+      const response = yield call(addHospital, payload);
       const { apierror } = response;
       if (apierror) {
         return;
@@ -139,6 +156,21 @@ export default {
   },
 
   reducers: {
+    saveAllList(state, { payload }) {
+      const { allList, allPagination } = payload;
+      return {
+        ...state,
+        allList,
+        allPagination,
+      };
+    },
+    clearAllList(state) {
+      return {
+        ...state,
+        allList: [],
+        allPagination: {},
+      };
+    },
     saveFilter(state, { payload }) {
       return {
         ...state,

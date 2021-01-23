@@ -6,9 +6,10 @@ import { connect, Link } from 'umi';
 import Authorized from '@/utils/Authorized';
 import RenderPropsModal from '@/components/RenderModal';
 import { getValue } from '@/utils/utils';
-import HospitalForm from './components/A19Form';
+import AddForm from './components/AddForm';
+import UpdateForm from './components/UpdateForm';
 
-const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
+const HospitalA19 = connect(({ hospitalA19: { list, pagination }, loading }) => ({
   list,
   pagination,
   loading: loading.effects['hospitalA19/fetch'],
@@ -18,8 +19,9 @@ const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
   // 列表参数
   const [params, setParams] = useState({
     current: pagination.current || 1,
-    pageSize: pagination.pageSize || 10,
+    pageSize: pagination.pageSize || 20,
     name: '',
+    flag: 'A',
   });
 
   // 【查询医院列表】
@@ -45,14 +47,12 @@ const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
     });
   };
 
-  // 【批量删除医院】
+  // 【批量删除A类医院】
   const handleBatchDelete = () => {
     if (selectedRowKeys.length === 0) return;
     dispatch({
       type: 'hospitalA19/deleteBatch',
-      payload: {
-        idList: selectedRowKeys,
-      },
+      payload: [...selectedRowKeys],
       callback: () => {
         setSelectedRowKeys([]);
         message.success('批量删除A类医院成功。');
@@ -60,7 +60,7 @@ const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
     });
   };
 
-  // 【删除医院】
+  // 【删除A类医院】
   const handleDelete = (record) => {
     const { id } = record;
     dispatch({
@@ -133,7 +133,7 @@ const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
     },
     {
       title: '医院等级',
-      dataIndex: 'lvl',
+      dataIndex: 'level',
     },
     {
       title: '医院地址',
@@ -151,7 +151,7 @@ const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
                 <>
                   <EditOutlined title="编辑" className="icon" onClick={showModalHandler} />
                   <Modal title="编辑">
-                    <HospitalForm isEdit id={record.id} />
+                    <UpdateForm isEdit id={record.id} />
                   </Modal>
                 </>
               )}
@@ -186,8 +186,8 @@ const HospitalA19 = connect(({ hospital: { list, pagination }, loading }) => ({
                     <Button type="primary" title="新增" onClick={showModalHandler}>
                       <PlusOutlined />
                     </Button>
-                    <Modal title="新增">
-                      <HospitalForm />
+                    <Modal title="新增" width={1088}>
+                      <AddForm />
                     </Modal>
                   </>
                 )}

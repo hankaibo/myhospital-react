@@ -225,8 +225,8 @@ class HospitalMap extends Component {
         code: item.code,
         type: item.type,
         district: item.district,
-        lvl: item.lvl,
-        zipCode: item.zipCode,
+        level: item.level,
+        postalCode: item.postalCode,
         address: item.address,
         introduction: item.introduction,
       });
@@ -589,13 +589,13 @@ class HospitalMap extends Component {
   handleFilter = (hospitalList) => {
     const { filterLvl, filterType } = this.state;
     return hospitalList
-      .filter((item) => (filterLvl !== '-' ? item.lvl === filterLvl : item))
+      .filter((item) => (filterLvl !== '-' ? item.level === filterLvl : item))
       .filter((item) => (filterType !== '-' ? item.type === filterType : item));
   };
 
   render() {
     const { type, hospital, hospitalList } = this.state;
-    const { name, code, type: hospitalType, lvl, address, introduction } = hospital;
+    const { name, code, type: hospitalType, level, address, introduction } = hospital;
     return (
       <div style={{ position: 'relative' }}>
         <div ref={this.olRef} style={{ height: '100vh' }}>
@@ -613,7 +613,7 @@ class HospitalMap extends Component {
                 <Descriptions.Item label="编码">
                   <Text copyable>{code}</Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="等级">{lvl}</Descriptions.Item>
+                <Descriptions.Item label="等级">{level}</Descriptions.Item>
                 <Descriptions.Item label="类型">{hospitalType}</Descriptions.Item>
                 <Descriptions.Item label="地址">{address}</Descriptions.Item>
                 <Descriptions.Item label="简介">{introduction}</Descriptions.Item>
@@ -669,7 +669,7 @@ class HospitalMap extends Component {
                       description={
                         <p className={styles.description}>
                           <Text>{item.type}</Text>
-                          <Text>{item.lvl}</Text>
+                          <Text>{item.level}</Text>
                         </p>
                       }
                     />
@@ -692,7 +692,7 @@ class HospitalMap extends Component {
   }
 }
 
-export default connect(({ hospital: { mapData }, loading }) => ({
+export default connect(({ hospitalMap: { mapData }, loading }) => ({
   list: mapData,
   loading: loading.effects['hospitalMap/fetch'],
 }))(HospitalMap);

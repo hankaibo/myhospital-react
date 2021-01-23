@@ -2,21 +2,32 @@ import { stringify } from 'qs';
 import request from '@/utils/request';
 
 /**
+ * 按条件查询医院列表数据。
+ * @param params
+ * @returns {Promise<void>}
+ */
+export async function listHospital(params) {
+  return request(`/hospitals?${stringify(params)}`);
+}
+
+/**
  * 按条件查询医院A类医院列表数据。
  * @param params
  * @returns {Promise<void>}
  */
 export async function pageHospital(params) {
-  return request(`/hospitals/a19/?${stringify(params)}`);
+  return request(`/hospitals/a19?${stringify(params)}`);
 }
 
 /**
  * 添加A类医院。
- * @param id
+ * @param params
  * @returns {Promise<void>}
  */
-export async function addHospital(id) {
-  return request.post(`/hospitals/a19/${id}`);
+export async function addHospital(params) {
+  return request.post('/hospitals/a19', {
+    data: [...params],
+  });
 }
 
 /**
@@ -53,8 +64,6 @@ export async function deleteHospital(id) {
  */
 export async function deleteBatchHospital(params) {
   return request.delete('/hospitals/a19', {
-    data: {
-      ...params,
-    },
+    data: [...params],
   });
 }
