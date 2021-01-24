@@ -9,3 +9,19 @@ import request from '@/utils/request';
 export async function circleHospital(params) {
   return request.get(`/hospitals/map/circle?${stringify(params)}`);
 }
+
+/**
+ * 获取A类医院
+ * @returns {Promise<*>}
+ */
+export async function listHospitalA19() {
+  return request.get('/hospitals/map/a19');
+}
+
+/**
+ * 分类统计医院数量
+ * @returns {Promise<*>}
+ */
+export async function countHospital() {
+  return request.get('/hospitals/map/type');
+}

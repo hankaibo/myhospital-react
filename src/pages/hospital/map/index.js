@@ -1,5 +1,17 @@
 import React, { Component, createRef } from 'react';
-import { Select as AntSelect, Descriptions, Typography, List, message } from 'antd';
+import {
+  Switch,
+  Button,
+  Tooltip,
+  Space,
+  Select as AntSelect,
+  Descriptions,
+  Typography,
+  List,
+  Drawer,
+  Divider,
+  message,
+} from 'antd';
 import { connect } from 'umi';
 import Map from 'ol/Map';
 import View from 'ol/View';
@@ -16,10 +28,11 @@ import { click } from 'ol/events/condition';
 import ContextMenu from 'ol-contextmenu';
 import 'ol/ol.css';
 import 'ol-contextmenu/dist/ol-contextmenu.css';
+import { isArray, isEmpty } from '@/utils/utils';
 import styles from './index.less';
 
 const { Option } = AntSelect;
-const { Link, Text } = Typography;
+const { Title, Link, Text, Paragraph } = Typography;
 
 // 瓦片图层
 const rasterLayer = new TileLayer({
@@ -91,15 +104,52 @@ const userVectorLayer = new VectorLayer({
   source: userVectorSource,
 });
 
+// 矢量图层（A类医院）
+const a19VectorSource = new VectorSource();
+const a19VectorLayer = new VectorLayer({
+  source: a19VectorSource,
+});
+a19VectorLayer.set('name', 'a19VectorLayer');
+
+const handleOffset = (index, tag) => {
+  let row = 0;
+  let idx = index;
+  switch (tag) {
+    case 'blue':
+      if (index > 9) {
+        row = 2;
+        idx = index - 10;
+      } else {
+        row = 1;
+      }
+      break;
+    case 'red':
+      if (index > 9) {
+        row = 4;
+        idx = index - 10;
+      } else {
+        row = 3;
+      }
+      break;
+    case 'yellow':
+      row = 5;
+      break;
+    default:
+      idx = 3;
+      row = 0;
+  }
+  return [19 + 88 * idx, 8 + 88 * row];
+};
+
 class HospitalMap extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      type: 'Circle',
       hospital: {},
       hospitalList: [],
       filterLvl: '-',
       filterType: '-',
+      visible: false,
     };
     this.olRef = createRef();
     this.popupRef = createRef();
@@ -114,13 +164,15 @@ class HospitalMap extends Component {
     this.beforeMarkList = [];
     this.beforeCenter = [];
     this.beforeRadius = 0;
+
+    this.a19AllFeature = [];
   }
 
   componentDidMount() {
     // 初始化地图
     this.map = new Map({
       target: this.olRef.current,
-      layers: [rasterLayer, vectorLayer, clusterLayer],
+      layers: [rasterLayer, vectorLayer, clusterLayer, a19VectorLayer],
       view: new View({
         // projection: 'EPSG:4326',
         center: fromLonLat([116.397507, 39.908708]), // 默认北京
@@ -162,23 +214,33 @@ class HospitalMap extends Component {
   shouldComponentUpdate(nextProps, nextStatue) {
     return (
       this.props.list !== nextProps.list ||
+      this.props.listA19 !== nextProps.listA19 ||
+      this.props.total !== nextProps.total ||
       this.state.hospital !== nextStatue.hospital ||
       this.state.hospitalList !== nextStatue.hospitalList ||
       this.state.filterLvl !== nextStatue.filterLvl ||
-      this.state.filterType !== nextStatue.filterType
+      this.state.filterType !== nextStatue.filterType ||
+      this.state.visible !== nextStatue.visible
     );
   }
 
   componentDidUpdate() {
-    const { list } = this.props;
+    const { list, listA19 } = this.props;
     this.addMarker(list);
+    this.addMarkerA19(listA19);
   }
 
   componentWillUnmount() {
     this.map.setTarget(undefined);
     const { dispatch } = this.props;
     dispatch({
-      type: 'hospitalMap/clearMap',
+      type: 'hospitalMap/clearList',
+    });
+    dispatch({
+      type: 'hospitalMap/clearListA19',
+    });
+    dispatch({
+      type: 'hospitalMap/clearCount',
     });
   }
 
@@ -195,7 +257,7 @@ class HospitalMap extends Component {
       },
       callback() {
         dispatch({
-          type: 'hospitalMap/clearMap',
+          type: 'hospitalMap/clearList',
         });
       },
     });
@@ -206,7 +268,7 @@ class HospitalMap extends Component {
    * @param list
    */
   addMarker = (list) => {
-    if (!Array.isArray(list)) {
+    if (!isArray(list) || isEmpty(list)) {
       return;
     }
     const newList = [];
@@ -217,6 +279,8 @@ class HospitalMap extends Component {
         this.allFeature.push(item.id);
         newList.push(item);
       });
+
+    const featureList = [];
     newList.forEach((item) => {
       const iconFeature = new Feature({
         geometry: new Point(fromLonLat([item.lng, item.lat])),
@@ -230,9 +294,54 @@ class HospitalMap extends Component {
         address: item.address,
         introduction: item.introduction,
       });
-      markerVectorSource.addFeature(iconFeature);
+      featureList.push(iconFeature);
     });
+    markerVectorSource.addFeatures(featureList);
     this.beforeMarkList = [];
+  };
+
+  /**
+   * 添加A类医院
+   * @param list
+   */
+  addMarkerA19 = (list) => {
+    if (!isArray(list) || isEmpty(list)) {
+      return;
+    }
+    const newList = [];
+    list
+      .filter((item) => !this.a19AllFeature.includes(item.id))
+      .forEach((item) => {
+        this.a19AllFeature.push(item.id);
+        newList.push(item);
+      });
+
+    const featureArray = [];
+    newList.forEach((item, index) => {
+      const iconFeature = new Feature({
+        geometry: new Point(fromLonLat([item.lng, item.lat])),
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        type: item.type,
+        district: item.district,
+        level: item.level,
+        postalCode: item.postalCode,
+        address: item.address,
+        introduction: item.introduction,
+      });
+      const iconStyle = new Style({
+        image: new Icon({
+          anchor: [0.5, 0.96],
+          size: [44, 64],
+          offset: handleOffset(index, 'red'),
+          src: 'https://www.amap.com/assets/img/poi-marker.png',
+        }),
+      });
+      iconFeature.setStyle(iconStyle);
+      featureArray.push(iconFeature);
+    });
+    a19VectorSource.addFeatures(featureArray);
   };
 
   /**
@@ -279,25 +388,6 @@ class HospitalMap extends Component {
   };
 
   /**
-   * 切换绘制图形，并删除旧添加新交互功能。
-   * @param value
-   */
-  handleType = (value) => {
-    this.setState(
-      {
-        type: value,
-      },
-      () => {
-        this.map.removeInteraction(this.draw);
-        this.map.removeInteraction(this.snap);
-        this.map.removeInteraction(this.modify);
-        this.map.removeInteraction(this.select);
-        this.addInteractions();
-      },
-    );
-  };
-
-  /**
    * 添加地图交互功能
    */
   addInteractions = () => {
@@ -308,7 +398,7 @@ class HospitalMap extends Component {
   };
 
   handleDraw = () => {
-    const { type } = this.state;
+    const type = 'Circle';
     this.draw = new Draw({
       source: vectorSource,
       type,
@@ -439,11 +529,15 @@ class HospitalMap extends Component {
   addEvent = () => {
     this.map.on('click', (evt) => {
       const selectedFeature = this.map.forEachFeatureAtPixel(evt.pixel, (feature) => feature, {
-        layerFilter: (layer) => layer.get('name') === 'clusterLayer',
+        layerFilter: (layer) => layer.get('name') === 'clusterLayer' || layer.get('name') === 'a19VectorLayer',
       });
-      if (selectedFeature) {
+      if (!selectedFeature) {
+        return;
+      }
+      // 聚合
+      if (Array.isArray(selectedFeature.get('features'))) {
+        evt.stopPropagation();
         if (selectedFeature.get('features').length === 1) {
-          evt.stopPropagation();
           this.setState(
             {
               hospital: {
@@ -458,6 +552,19 @@ class HospitalMap extends Component {
         } else {
           message.warning('聚合元素不可以显示详情，请重新选择。');
         }
+      } else {
+        evt.stopPropagation();
+        this.setState(
+          {
+            hospital: {
+              ...selectedFeature.getProperties(),
+            },
+          },
+          () => {
+            const coordinates = selectedFeature.getGeometry().getCoordinates();
+            this.map.getOverlayById('popup').setPosition(coordinates);
+          },
+        );
       }
     });
 
@@ -466,7 +573,10 @@ class HospitalMap extends Component {
         return;
       }
       const hit = this.map.hasFeatureAtPixel(e.pixel, {
-        layerFilter: (layer) => layer.get('name') === 'vectorLayer' || layer.get('name') === 'clusterLayer',
+        layerFilter: (layer) =>
+          layer.get('name') === 'vectorLayer' ||
+          layer.get('name') === 'clusterLayer' ||
+          layer.get('name') === 'a19VectorLayer',
       });
       this.draw.setActive(!hit);
       this.map.getTargetElement().style.cursor = hit ? 'pointer' : '';
@@ -593,12 +703,64 @@ class HospitalMap extends Component {
       .filter((item) => (filterType !== '-' ? item.type === filterType : item));
   };
 
+  handleA19 = (checked) => {
+    const { dispatch } = this.props;
+    if (checked) {
+      dispatch({
+        type: 'hospitalMap/fetchA19',
+      });
+    } else {
+      a19VectorSource.clear();
+      this.a19AllFeature = [];
+      dispatch({
+        type: 'hospitalMap/clearListA19',
+      });
+    }
+  };
+
+  handleDrawerShow = () => {
+    const { dispatch } = this.props;
+
+    this.setState({
+      visible: true,
+    });
+
+    dispatch({
+      type: 'hospitalMap/fetchCount',
+    });
+  };
+
+  handleDrawerClose = () => {
+    this.setState({
+      visible: false,
+    });
+  };
+
   render() {
-    const { type, hospital, hospitalList } = this.state;
-    const { name, code, type: hospitalType, level, address, introduction } = hospital;
+    const { hospital, hospitalList, visible } = this.state;
+    const { total, general, specialized, chineseMedicine, community, village, internal } = this.props;
+    const { name, code, type, level, address, introduction } = hospital;
     return (
-      <div style={{ position: 'relative' }}>
-        <div ref={this.olRef} style={{ height: '100vh' }}>
+      <main>
+        <header>
+          <strong className={styles.title}>北京医保定点医院选择助手</strong>
+          <span className={styles.a}>
+            <Tooltip title="经过北京市医疗保险事务管理中心评选的'尖子生'医院，一年一选，参加医保的人员，可以直接就医，不占用医保名额。">
+              <span className={styles.label}>A类医院</span>
+            </Tooltip>
+            <Switch
+              className={styles.switch}
+              size="small"
+              checkedChildren="显示"
+              unCheckedChildren="隐藏"
+              onChange={this.handleA19}
+            />
+          </span>
+          <Button type="text" className={styles.help} onClick={this.handleDrawerShow}>
+            选择指南
+          </Button>
+        </header>
+        <div ref={this.olRef} style={{ flex: 1 }}>
           <div ref={this.popupRef} className={styles.olPopup}>
             <a href="#" className={styles.olPopupCloser} onClick={this.handleClose}>
               ✖
@@ -614,7 +776,7 @@ class HospitalMap extends Component {
                   <Text copyable>{code}</Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="等级">{level}</Descriptions.Item>
-                <Descriptions.Item label="类型">{hospitalType}</Descriptions.Item>
+                <Descriptions.Item label="类型">{type}</Descriptions.Item>
                 <Descriptions.Item label="地址">{address}</Descriptions.Item>
                 <Descriptions.Item label="简介">{introduction}</Descriptions.Item>
               </Descriptions>
@@ -631,11 +793,11 @@ class HospitalMap extends Component {
                 onChange={(value) => this.setState({ filterType: value })}
               >
                 <Option value="-">-</Option>
-                <Option value="A类医院">A类医院</Option>
                 <Option value="对外综合">对外综合</Option>
                 <Option value="对外专科">对外专科</Option>
                 <Option value="对外中医">对外中医</Option>
                 <Option value="社区卫生站">社区卫生站</Option>
+                <Option value="村卫生室">村卫生室</Option>
                 <Option value="对内">对内</Option>
               </AntSelect>
               <AntSelect
@@ -679,20 +841,120 @@ class HospitalMap extends Component {
             </div>
           </div>
         )}
-        <div style={{ position: 'absolute', top: '.5em', right: '.5em' }}>
-          <AntSelect defaultValue={type} style={{ width: 120 }} onChange={(value) => this.handleType(value)}>
-            <Option value="Circle">圆形</Option>
-            <Option value="Polygon" disabled>
-              多边形
-            </Option>
-          </AntSelect>
-        </div>
-      </div>
+        <Drawer
+          title="北京市医保定点医院选择指北"
+          width={600}
+          placement="right"
+          closable={false}
+          onClose={this.handleDrawerClose}
+          visible={visible}
+        >
+          <Typography>
+            <Title level={5}>北京有多少家定点医院？</Title>
+            <Paragraph>
+              <Text mark>{total}</Text>家
+            </Paragraph>
+            <Divider />
+
+            <Title level={5}>{total}家定点医院分为几类？</Title>
+            <Paragraph>
+              <ol>
+                <li>
+                  对外综合 (<Text mark>{general}</Text>) 家
+                </li>
+                <li>
+                  对外专科 (<Text mark>{specialized}</Text>) 家
+                </li>
+                <li>
+                  对外中医 (<Text mark>{chineseMedicine}</Text>) 家
+                </li>
+                <li>
+                  社区卫生站 (<Text mark>{community}</Text>) 家
+                </li>
+                <li>
+                  村卫生室 (<Text mark>{village}</Text>) 家
+                </li>
+                <li>
+                  对内 (<Text mark>{internal}</Text>) 家
+                </li>
+              </ol>
+            </Paragraph>
+            <Divider />
+
+            <Title level={5}>我们能从中选几家作为定点医院？</Title>
+            <Paragraph>
+              <Text mark>4</Text>家
+            </Paragraph>
+            <Divider />
+
+            <Title level={5}>不用选就能持卡就医的医院有哪些？</Title>
+            <Paragraph>A类医院；专科医院；中医医院。</Paragraph>
+            <Divider />
+
+            <Title level={5}>我该如何选择定点医院？</Title>
+            <Paragraph>
+              <ol>
+                <li>
+                  <Text>就近原则：离家近的，一般选择社区卫生站</Text>
+                </li>
+                <li>
+                  <Text>报销高的：二级医院，技术与报销平衡</Text>
+                </li>
+                <li>
+                  <Text>技术强的：三级医院，注意排除A类医院</Text>
+                </li>
+                <li>
+                  <Text>军队医院：人民群众最后的希望</Text>
+                </li>
+              </ol>
+            </Paragraph>
+            <Divider />
+
+            <Title level={5}>定点医院能不能变更？</Title>
+            <Paragraph>能，找贵司人力小姐姐帮助变更即可。</Paragraph>
+            <Divider />
+
+            <Title level={5}>如何辨别定点医院？</Title>
+            <Paragraph>
+              <Space direction="vertical">
+                <Text>
+                  官网：
+                  <Link href="http://ybj.beijing.gov.cn/" target="_blank">
+                    北京市医疗保障局
+                  </Link>
+                </Text>
+                <Text>
+                  官网直达：
+                  <Link
+                    href="http://ybj.beijing.gov.cn/2020_zwfw/2020_bmcx/202002/t20200217_1644107.html"
+                    target="_blank"
+                  >
+                    北京市定点医院直达
+                  </Link>
+                </Text>
+              </Space>
+            </Paragraph>
+          </Typography>
+        </Drawer>
+      </main>
     );
   }
 }
 
-export default connect(({ hospitalMap: { mapData }, loading }) => ({
-  list: mapData,
-  loading: loading.effects['hospitalMap/fetch'],
-}))(HospitalMap);
+export default connect(
+  ({
+    hospitalMap: { list, listA19, total, general, specialized, chineseMedicine, community, village, internal },
+    loading,
+  }) => ({
+    list,
+    listA19,
+    total,
+    general,
+    specialized,
+    chineseMedicine,
+    community,
+    village,
+    internal,
+    loading: loading.effects['hospitalMap/fetch'],
+  }),
+)(HospitalMap);
