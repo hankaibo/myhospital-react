@@ -23,7 +23,7 @@ import Feature from 'ol/Feature';
 import Overlay from 'ol/Overlay';
 import { Fill, Stroke, Style, Icon, Circle as CircleStyle, Text as TextStyle } from 'ol/style';
 import { fromLonLat, toLonLat } from 'ol/proj';
-import Point from 'ol/geom/Point';
+import { Point, Circle } from 'ol/geom';
 import { click } from 'ol/events/condition';
 import ContextMenu from 'ol-contextmenu';
 import 'ol/ol.css';
@@ -594,6 +594,42 @@ class HospitalMap extends Component {
         this.map.getView().animate({ center });
 
         // 标记
+        const circleFeature = new Feature({
+          geometry: new Circle(center, 50),
+        });
+        circleFeature.setStyle(
+          new Style({
+            renderer: function renderer(coordinates, state) {
+              const coordinates0 = coordinates[0];
+              const x = coordinates0[0];
+              const y = coordinates0[1];
+              const coordinates1 = coordinates[1];
+              const x1 = coordinates1[0];
+              const y1 = coordinates1[1];
+              const ctx = state.context;
+              const dx = x1 - x;
+              const dy = y1 - y;
+              const radius = Math.sqrt(dx * dx + dy * dy);
+
+              const innerRadius = 0;
+              const outerRadius = radius * 1.4;
+
+              const gradient = ctx.createRadialGradient(x, y, innerRadius, x, y, outerRadius);
+              gradient.addColorStop(0, 'rgba(255,0,0,0)');
+              gradient.addColorStop(0.6, 'rgba(255,0,0,0.2)');
+              gradient.addColorStop(1, 'rgba(255,0,0,0.8)');
+              ctx.beginPath();
+              ctx.arc(x, y, radius, 0, 2 * Math.PI, true);
+              ctx.fillStyle = gradient;
+              ctx.fill();
+
+              ctx.arc(x, y, radius, 0, 2 * Math.PI, true);
+              ctx.strokeStyle = 'rgba(255,0,0,1)';
+              ctx.stroke();
+            },
+          }),
+        );
+
         const circle = new Feature({
           geometry: new Point(center),
         });
@@ -607,7 +643,8 @@ class HospitalMap extends Component {
             }),
           }),
         );
-        userVectorSource.addFeature(circle);
+        a19VectorSource.addFeature(circleFeature);
+        a19VectorSource.addFeature(circle);
         this.map.addLayer(userVectorLayer);
 
         // 动画
