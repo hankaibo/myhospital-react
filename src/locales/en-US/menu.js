@@ -17,7 +17,9 @@ export default {
   'menu.system.role': 'Role',
   'menu.system.menu': 'Menu',
   'menu.system.api': 'API',
+  'menu.system.region': 'Region',
   'menu.system.dictionary': 'Dictionary',
+  'menu.system.dictionaryItem': 'DictionaryItem',
   // exception
   'menu.exception': 'Exception',
   'menu.exception.not-permission': '403',

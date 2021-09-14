@@ -1,14 +1,22 @@
-import { addDict, deleteBatchDict, deleteDict, enableDict, getDictById, pageDict, updateDict } from './service';
+import {
+  pageDictionaryItem,
+  addDictionaryItem,
+  getDictionaryItemById,
+  updateDictionaryItem,
+  enableDictionaryItem,
+  deleteDictionaryItem,
+  deleteBatchDictionaryItem,
+} from '../services/dictionaryItem';
 
 export default {
-  namespace: 'systemDictionary',
+  namespace: 'systemDictionaryItem',
 
   state: {
     // 列表及分页
     list: [],
     pagination: {},
     // 编辑
-    dictionary: {},
+    dictionaryItem: {},
     // 过滤参数
     filter: {},
   },
@@ -21,16 +29,17 @@ export default {
           ...payload,
         },
       });
-      const response = yield call(pageDict, payload);
+      const response = yield call(pageDictionaryItem, payload);
       const { apierror } = response;
       if (apierror) {
         return;
       }
       const { list, pageNum: current, pageSize, total } = response;
+      const newList = list.map((item) => ({ ...item, status: item.status === 'ENABLED' }));
       yield put({
         type: 'saveList',
         payload: {
-          list: list.map((item) => ({ ...item, status: item.status === 'ENABLED' })),
+          list: newList,
           pagination: { current, pageSize, total },
         },
       });
@@ -38,12 +47,12 @@ export default {
     },
     *add({ payload, callback }, { call, put, select }) {
       const values = { ...payload, status: payload.status ? 'ENABLED' : 'DISABLED' };
-      const response = yield call(addDict, values);
+      const response = yield call(addDictionaryItem, values);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemDictionary.filter);
+      const filter = yield select((state) => state.systemDictionaryItem.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -55,28 +64,31 @@ export default {
     },
     *fetchById({ payload, callback }, { call, put }) {
       const { id } = payload;
-      const response = yield call(getDictById, id);
+      const response = yield call(getDictionaryItemById, id);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const dictionary = { ...response, status: response.status === 'ENABLED' };
+      const dictionaryItem = {
+        ...response,
+        status: response.status === 'ENABLED',
+      };
       yield put({
         type: 'save',
         payload: {
-          dictionary,
+          dictionaryItem,
         },
       });
       if (callback) callback();
     },
     *update({ payload, callback }, { call, put, select }) {
       const values = { ...payload, status: payload.status ? 'ENABLED' : 'DISABLED' };
-      const response = yield call(updateDict, values);
+      const response = yield call(updateDictionaryItem, values);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemDictionary.filter);
+      const filter = yield select((state) => state.systemDictionaryItem.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -88,12 +100,12 @@ export default {
     *enable({ payload, callback }, { call, put, select }) {
       const { id, status } = payload;
       const params = { id, status: status ? 'ENABLED' : 'DISABLED' };
-      const response = yield call(enableDict, params);
+      const response = yield call(enableDictionaryItem, params);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemDictionary.filter);
+      const filter = yield select((state) => state.systemDictionaryItem.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -104,12 +116,12 @@ export default {
     },
     *delete({ payload, callback }, { call, put, select }) {
       const { id } = payload;
-      const response = yield call(deleteDict, id);
+      const response = yield call(deleteDictionaryItem, id);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemDictionary.filter);
+      const filter = yield select((state) => state.systemDictionaryItem.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -119,13 +131,12 @@ export default {
       if (callback) callback();
     },
     *deleteBatch({ payload, callback }, { call, put, select }) {
-      const { ids } = payload;
-      const response = yield call(deleteBatchDict, ids);
+      const response = yield call(deleteBatchDictionaryItem, payload);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemDictionary.filter);
+      const filter = yield select((state) => state.systemDictionaryItem.filter);
       yield put({
         type: 'fetch',
         payload: {
@@ -162,16 +173,16 @@ export default {
       };
     },
     save(state, { payload }) {
-      const { dictionary } = payload;
+      const { dictionaryItem } = payload;
       return {
         ...state,
-        dictionary,
+        dictionaryItem,
       };
     },
     clear(state) {
       return {
         ...state,
-        dictionary: {},
+        dictionaryItem: {},
       };
     },
   },

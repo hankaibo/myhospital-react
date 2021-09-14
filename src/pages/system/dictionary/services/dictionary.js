@@ -2,11 +2,11 @@ import { stringify } from 'qs';
 import request from '@/utils/request';
 
 /**
- * 条件查询字典列表数据。
+ * 按条件查询字典列表数据。
  * @param params
  * @returns {Promise<void>}
  */
-export async function pageDict(params) {
+export async function pageDictionary(params) {
   return request(`/dictionaries?${stringify(params)}`);
 }
 
@@ -15,7 +15,7 @@ export async function pageDict(params) {
  * @param params
  * @returns {Promise<void>}
  */
-export async function addDict(params) {
+export async function addDictionary(params) {
   return request.post('/dictionaries', {
     data: {
       ...params,
@@ -28,7 +28,7 @@ export async function addDict(params) {
  * @param id
  * @returns {Promise<void>}
  */
-export async function getDictById(id) {
+export async function getDictionaryById(id) {
   return request(`/dictionaries/${id}`);
 }
 
@@ -37,7 +37,7 @@ export async function getDictById(id) {
  * @param params
  * @returns {Promise<void>}
  */
-export async function updateDict(params) {
+export async function updateDictionary(params) {
   const { id } = params;
   return request.put(`/dictionaries/${id}`, {
     data: {
@@ -52,7 +52,7 @@ export async function updateDict(params) {
  * @param params
  * @returns {Promise<void>}
  */
-export async function enableDict(params) {
+export async function enableDictionary(params) {
   const { id, status } = params;
   return request.patch(`/dictionaries/${id}/status?${stringify({ status })}`);
 }
@@ -62,19 +62,18 @@ export async function enableDict(params) {
  * @param id
  * @returns {Promise<void>}
  */
-export async function deleteDict(id) {
+export async function deleteDictionary(id) {
   return request.delete(`/dictionaries/${id}`);
 }
 
 /**
  * 批量删除字典。
- * @param ids
+ * @param params
  * @returns {Promise<void>}
  */
-export async function deleteBatchDict(ids) {
-  return request.delete(`/dictionaries`, {
-    data: {
-      ids,
-    },
+export async function deleteBatchDictionary(params) {
+  const { ids } = params;
+  return request.delete('/dictionaries', {
+    data: [...ids],
   });
 }

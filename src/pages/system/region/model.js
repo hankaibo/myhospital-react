@@ -1,35 +1,31 @@
 import {
-  addApi,
-  deleteApi,
-  enableApi,
-  getApiById,
-  getMenuTree,
-  importBatchApi,
-  listChildrenById,
-  moveButton,
-  updateApi,
+  addRegion,
+  deleteRegion,
+  enableRegion,
+  getRegionById,
+  getRegionTree,
+  listSubRegionById,
+  moveRegion,
+  updateRegion,
 } from './service';
 
 export default {
-  namespace: 'systemApi',
+  namespace: 'systemRegion',
 
   state: {
-    // 菜单树
+    // 树
     tree: [],
     // 列表
     list: [],
     // 编辑
-    api: {},
-    // 上传接口列表
-    apiList: [],
-    apiListBackup: [],
+    region: {},
     // 过滤参数
     filter: {},
   },
 
   effects: {
     *fetch({ payload, callback }, { call, put }) {
-      const response = yield call(getMenuTree, payload);
+      const response = yield call(getRegionTree, payload);
       const { apierror } = response;
       if (apierror) {
         return;
@@ -49,7 +45,7 @@ export default {
           ...payload,
         },
       });
-      const response = yield call(listChildrenById, payload);
+      const response = yield call(listSubRegionById, payload);
       const { apierror } = response;
       if (apierror) {
         return;
@@ -65,131 +61,112 @@ export default {
     },
     *add({ payload, callback }, { call, put, select }) {
       const values = { ...payload, status: payload.status ? 'ENABLED' : 'DISABLED' };
-      const response = yield call(addApi, values);
+      const response = yield call(addRegion, values);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemApi.filter);
+      const filter = yield select((state) => state.systemRegion.filter);
       yield put({
         type: 'fetchChildrenById',
         payload: {
           ...filter,
         },
       });
-
+      yield put({
+        type: 'fetch',
+      });
       if (callback) callback();
     },
     *fetchById({ payload, callback }, { call, put }) {
       const { id } = payload;
-      const response = yield call(getApiById, id);
+      const response = yield call(getRegionById, id);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const api = { ...response, status: response.status === 'ENABLED' };
+      const region = { ...response, status: response.status === 'ENABLED', parentId: `${response.parentId}` };
       yield put({
         type: 'save',
         payload: {
-          api,
+          region,
         },
       });
       if (callback) callback();
     },
     *update({ payload, callback }, { call, put, select }) {
       const values = { ...payload, status: payload.status ? 'ENABLED' : 'DISABLED' };
-      const response = yield call(updateApi, values);
+      const response = yield call(updateRegion, values);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemApi.filter);
+      const filter = yield select((state) => state.systemRegion.filter);
       yield put({
         type: 'fetchChildrenById',
         payload: {
           ...filter,
         },
+      });
+      yield put({
+        type: 'fetch',
       });
       if (callback) callback();
     },
     *enable({ payload, callback }, { call, put, select }) {
       const { id, status } = payload;
-      const values = { id, status: status ? 'ENABLED' : 'DISABLED' };
-      const response = yield call(enableApi, values);
+      const params = { id, status: status ? 'ENABLED' : 'DISABLED' };
+      const response = yield call(enableRegion, params);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemApi.filter);
+      const filter = yield select((state) => state.systemRegion.filter);
       yield put({
         type: 'fetchChildrenById',
         payload: {
           ...filter,
         },
       });
-
+      yield put({
+        type: 'fetch',
+      });
       if (callback) callback();
     },
     *delete({ payload, callback }, { call, put, select }) {
       const { id } = payload;
-      const response = yield call(deleteApi, id);
+      const response = yield call(deleteRegion, id);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemApi.filter);
+      const filter = yield select((state) => state.systemRegion.filter);
       yield put({
         type: 'fetchChildrenById',
         payload: {
           ...filter,
         },
+      });
+      yield put({
+        type: 'fetch',
       });
       if (callback) callback();
     },
     *move({ payload, callback }, { call, put, select }) {
-      const { searchParams, ...values } = payload;
-      const response = yield call(moveButton, values);
+      const response = yield call(moveRegion, payload);
       const { apierror } = response;
       if (apierror) {
         return;
       }
-      const filter = yield select((state) => state.systemApi.filter);
+      const filter = yield select((state) => state.systemRegion.filter);
       yield put({
         type: 'fetchChildrenById',
         payload: {
           ...filter,
         },
       });
-      if (callback) callback();
-    },
-    *importBatch({ payload, callback }, { call, put, select }) {
-      const { parentId, ids } = payload;
-      const list = yield select((state) => state.systemApi.apiList);
-      const arrApi = list
-        .filter((item) => ids.includes(item.id))
-        .map((it) => {
-          const { name, uri, code, method } = it;
-          return {
-            type: 'API',
-            status: 'ENABLED',
-            parentId,
-            name,
-            uri,
-            code,
-            method,
-          };
-        });
-      const response = yield call(importBatchApi, arrApi);
-      const { apierror } = response;
-      if (apierror) {
-        return;
-      }
       yield put({
-        type: 'fetchChildrenById',
-        payload: {
-          type: 'API',
-          id: parentId,
-        },
+        type: 'fetch',
       });
       if (callback) callback();
     },
@@ -232,69 +209,16 @@ export default {
       };
     },
     save(state, { payload }) {
-      const { api } = payload;
+      const { region } = payload;
       return {
         ...state,
-        api,
+        region,
       };
     },
     clear(state) {
       return {
         ...state,
-        api: {},
-      };
-    },
-    uploadFile(state, { payload }) {
-      const { fileContent } = payload;
-      const { paths } = fileContent;
-
-      // 所有接口
-      const apiList = [];
-      Object.keys(paths).forEach((key, index) => {
-        const item = paths[key];
-        const starKey = key.replace(/{\w+}/g, '*');
-        Object.keys(item).forEach((k, i) => {
-          const it = item[k];
-          const uri = starKey.startsWith('/') ? starKey : `${starKey}`;
-          const o = {
-            id: `${index}_${i}`,
-            key: `${index}_${i}`,
-            name: it.summary,
-            uri,
-            code: `${starKey
-              .split('/')
-              .filter((f) => f && f !== '*')
-              .join('')}:${k}`,
-            method: `${k}`.toUpperCase(),
-          };
-          apiList.push(o);
-        });
-      });
-      return {
-        ...state,
-        apiList,
-        apiListBackup: apiList,
-      };
-    },
-    clearFile(state) {
-      return {
-        ...state,
-        apiList: [],
-        apiListBackup: [],
-      };
-    },
-    updateFile(state, { payload }) {
-      const reducer = (item) => {
-        const newItem = { ...item };
-        payload.forEach((it) => {
-          const key = Object.keys(it)[0];
-          newItem[key] = it[key] + newItem[key];
-        });
-        return newItem;
-      };
-      return {
-        ...state,
-        apiList: state.apiListBackup.map((item) => reducer(item)),
+        region: {},
       };
     },
   },

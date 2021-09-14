@@ -3,7 +3,7 @@ export default {
   'layout.user.link.help': 'Help',
   'layout.user.link.privacy': 'Privacy',
   'layout.user.link.terms': 'Terms',
-  'app.logo.name': 'my hospital',
+  'app.logo.name': 'MyHospital',
   'app.copyright': '2021 hankaibo',
   'app.login.username': 'username',
   'app.login.password': 'password',
