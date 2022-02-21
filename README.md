@@ -6,7 +6,7 @@
 
 </div>
 
-本项目基于[myantdpro](https://github.com/hankaibo/myantdpro)，请参考[README.zh-CN.md](https://github.com/hankaibo/myantdpro/blob/master/README.zh-CN.md)。
+本项目基于[amy-react](https://github.com/hankaibo/amy-react)，请参考[README.zh-CN.md](https://github.com/hankaibo/amy-react/blob/master/README.zh-CN.md)。
 
 ## 赞助商
 
